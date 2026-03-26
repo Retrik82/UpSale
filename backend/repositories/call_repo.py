@@ -148,7 +148,7 @@ class CallRepository:
             suggested_improvements=suggested_improvements,
             summary=summary,
             full_analysis=full_analysis,
-            metadata=metadata or {},
+            meta_data=metadata or {},
         )
         self.db.add(report)
         self.db.commit()

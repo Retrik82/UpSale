@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer, Float
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 
 from backend.core.db import Base
+from backend.core.types import GUID
 
 
 class CallStatus(str, Enum):
@@ -20,9 +20,9 @@ class CallStatus(str, Enum):
 class RealCall(Base):
     __tablename__ = "real_calls"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
-    client_template_id = Column(UUID(as_uuid=True), ForeignKey("client_templates.id", ondelete="SET NULL"), nullable=True)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    workspace_id = Column(GUID(), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    client_template_id = Column(GUID(), ForeignKey("client_templates.id", ondelete="SET NULL"), nullable=True)
     recording_path = Column(String(500), nullable=True)
     duration_seconds = Column(Integer, nullable=True)
     status = Column(String(50), default=CallStatus.PENDING.value, nullable=False)

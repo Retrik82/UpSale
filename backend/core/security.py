@@ -12,7 +12,7 @@ from backend.core.config import settings
 from backend.core.db import get_db
 from backend.repositories.user_repo import UserRepository
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 security = HTTPBearer()
 
 

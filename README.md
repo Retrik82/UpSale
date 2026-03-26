@@ -6,7 +6,7 @@ A web application for recording, transcribing and analyzing sales calls with AI-
 
 - **Backend**: Python 3.12 + FastAPI
 - **Frontend**: Next.js 14 + React + TypeScript + TailwindCSS
-- **Database**: PostgreSQL with SQLAlchemy 2.0 + Alembic
+- **Database**: SQLite (local file) with SQLAlchemy 2.0
 - **Audio**: Whisper (CPU) + pyannote.audio for diarization
 - **LLM**: Ollama (default) | OpenAI (optional)
 - **Runtime**: CPU only
@@ -43,7 +43,7 @@ A web application for recording, transcribing and analyzing sales calls with AI-
 
 - Python 3.12+
 - Node.js 18+
-- PostgreSQL 14+
+- SQLite (auto-created locally)
 
 ### Backend Setup
 
@@ -61,18 +61,15 @@ pip install -r requirements.txt
 3. Configure environment:
 ```bash
 cp .env.example .env
-# Edit .env with your PostgreSQL credentials
+# Optional: adjust DATABASE_URL if you want a different local SQLite file
 ```
 
-4. Run migrations:
-```bash
-cd alembic && alembic upgrade head
-```
-
-5. Start the server:
+4. Start the server:
 ```bash
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+The SQLite database file is created automatically on startup as `salescoach.db`.
 
 ### Frontend Setup
 

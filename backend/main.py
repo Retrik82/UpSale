@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api import api_router
 from backend.core.config import settings
+from backend.core.db import Base, engine
+from backend import models  # noqa: F401
 
 app = FastAPI(
     title="AI Sales Coach API",
@@ -19,6 +21,11 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api")
+
+
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/api/health")

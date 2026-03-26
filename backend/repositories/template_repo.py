@@ -43,7 +43,7 @@ class TemplateRepository:
             objections=objections or [],
             talking_points=talking_points or [],
             preferred_tone=preferred_tone,
-            metadata=metadata or {},
+            meta_data=metadata or {},
         )
         self.db.add(template)
         self.db.commit()
