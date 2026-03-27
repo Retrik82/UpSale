@@ -11,6 +11,8 @@ interface CallCardProps {
 export function CallCard({ call, onClick }: CallCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "recording":
+        return "bg-red-100 text-red-700";
       case "completed":
         return "bg-green-100 text-green-700";
       case "failed":

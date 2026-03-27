@@ -166,7 +166,7 @@ export default function CallsPage() {
                   type="submit"
                   className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
                 >
-                  Create & Start Recording
+                  Create Call
                 </button>
               </div>
             </form>
