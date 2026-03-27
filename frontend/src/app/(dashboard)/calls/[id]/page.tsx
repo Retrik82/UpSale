@@ -17,6 +17,7 @@ export default function CallDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [processingMessage, setProcessingMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -49,6 +50,7 @@ export default function CallDetailPage() {
     if (!call) return;
     setActionLoading("transcribe");
     setErrorMessage(null);
+    setProcessingMessage("Generating transcript...");
     try {
       await api.post(`/calls/${call.id}/transcribe`, {});
       await loadCall();
@@ -56,6 +58,7 @@ export default function CallDetailPage() {
       console.error("Failed to transcribe:", error);
       setErrorMessage(extractError(error, "Failed to transcribe the call."));
     } finally {
+      setProcessingMessage(null);
       setActionLoading(null);
     }
   };
@@ -64,6 +67,7 @@ export default function CallDetailPage() {
     if (!call) return;
     setActionLoading("analyze");
     setErrorMessage(null);
+    setProcessingMessage("Generating report...");
     try {
       await api.post(`/calls/${call.id}/analyze`);
       await loadCall();
@@ -71,6 +75,7 @@ export default function CallDetailPage() {
       console.error("Failed to analyze:", error);
       setErrorMessage(extractError(error, "Failed to generate the report."));
     } finally {
+      setProcessingMessage(null);
       setActionLoading(null);
     }
   };
@@ -79,13 +84,15 @@ export default function CallDetailPage() {
     if (!call) return;
     setActionLoading("start-recording");
     setErrorMessage(null);
+    setProcessingMessage("Starting recording...");
     try {
-      await api.post(`/calls/${call.id}/recording/start`, {});
-      await loadCall();
+      const response = await api.post<RealCall>(`/calls/${call.id}/recording/start`, {});
+      setCall((current) => (current ? { ...current, ...response.data } : response.data));
     } catch (error) {
       console.error("Failed to start recording:", error);
       setErrorMessage(extractError(error, "Failed to start recording."));
     } finally {
+      setProcessingMessage(null);
       setActionLoading(null);
     }
   };
@@ -94,15 +101,23 @@ export default function CallDetailPage() {
     if (!call) return;
     setActionLoading("stop-recording");
     setErrorMessage(null);
+    setProcessingMessage("Stopping recording...");
     try {
-      await api.post(`/calls/${call.id}/recording/stop`);
+      const stopResponse = await api.post<RealCall>(`/calls/${call.id}/recording/stop`);
+      setCall((current) => (current ? { ...current, ...stopResponse.data } : stopResponse.data));
+
+      setProcessingMessage("Transcribing call...");
       await api.post(`/calls/${call.id}/transcribe`, {});
+
+      setProcessingMessage("Building report...");
       await api.post(`/calls/${call.id}/analyze`);
+
       await loadCall();
     } catch (error) {
       console.error("Failed to stop recording:", error);
       setErrorMessage(extractError(error, "Failed to stop recording and process the call."));
     } finally {
+      setProcessingMessage(null);
       setActionLoading(null);
     }
   };
@@ -192,6 +207,11 @@ export default function CallDetailPage() {
         {errorMessage && (
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
+          </div>
+        )}
+        {processingMessage && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            {processingMessage}
           </div>
         )}
       </div>
