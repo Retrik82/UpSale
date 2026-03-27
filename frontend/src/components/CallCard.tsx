@@ -9,6 +9,8 @@ interface CallCardProps {
 }
 
 export function CallCard({ call, onClick }: CallCardProps) {
+  const callTitle = call.client_name || "Unnamed Call";
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "recording":
@@ -30,15 +32,15 @@ export function CallCard({ call, onClick }: CallCardProps) {
       onClick={onClick}
       className="bg-white rounded-xl p-5 border border-gray-200 hover:border-blue-300 hover:shadow-md transition cursor-pointer card-hover"
     >
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h3 className="font-semibold text-gray-900">
-            {call.client_name || "Unnamed Call"}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0 flex-1">
+          <h3 title={callTitle} className="truncate font-semibold text-gray-900">
+            {callTitle}
           </h3>
           <p className="text-sm text-gray-500">{formatDate(call.created_at)}</p>
         </div>
         <span
-          className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(
+          className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(
             call.status
           )}`}
         >

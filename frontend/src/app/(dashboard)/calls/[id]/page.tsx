@@ -288,7 +288,7 @@ export default function CallDetailPage() {
 
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 title={call.client_name || "Call Details"} className="max-w-3xl truncate text-3xl font-bold text-gray-900">
               {call.client_name || "Call Details"}
             </h1>
             <p className="text-gray-600 mt-1">
