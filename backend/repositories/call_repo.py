@@ -113,6 +113,43 @@ class CallRepository:
         self.db.refresh(transcript)
         return transcript
 
+    def upsert_transcript(
+        self,
+        call_id: uuid.UUID,
+        raw_text: str,
+        segments: list,
+        speakers: List[str],
+        language: str = "en",
+        confidence: Optional[int] = None,
+        duration_seconds: Optional[int] = None,
+    ) -> Transcript:
+        transcript = (
+            self.db.query(Transcript)
+            .filter(Transcript.call_id == call_id)
+            .first()
+        )
+
+        if transcript is None:
+            return self.create_transcript(
+                call_id=call_id,
+                raw_text=raw_text,
+                segments=segments,
+                speakers=speakers,
+                language=language,
+                confidence=confidence,
+                duration_seconds=duration_seconds,
+            )
+
+        transcript.raw_text = raw_text
+        transcript.segments = segments
+        transcript.speakers = speakers
+        transcript.language = language
+        transcript.confidence = confidence
+        transcript.duration_seconds = duration_seconds
+        self.db.commit()
+        self.db.refresh(transcript)
+        return transcript
+
     def create_report(
         self,
         call_id: uuid.UUID,
@@ -151,6 +188,70 @@ class CallRepository:
             meta_data=metadata or {},
         )
         self.db.add(report)
+        self.db.commit()
+        self.db.refresh(report)
+        return report
+
+    def upsert_report(
+        self,
+        call_id: uuid.UUID,
+        overall_score: int,
+        talk_ratio_seller: float,
+        talk_ratio_client: float,
+        engagement_score: int,
+        objection_handling_score: int,
+        closing_score: int,
+        product_knowledge_score: int,
+        communication_clarity_score: int,
+        strengths: list,
+        areas_for_improvement: list,
+        key_moments: list,
+        suggested_improvements: Optional[str] = None,
+        summary: Optional[str] = None,
+        full_analysis: Optional[str] = None,
+        metadata: Optional[dict] = None,
+    ) -> CallReport:
+        report = (
+            self.db.query(CallReport)
+            .filter(CallReport.call_id == call_id)
+            .first()
+        )
+
+        if report is None:
+            return self.create_report(
+                call_id=call_id,
+                overall_score=overall_score,
+                talk_ratio_seller=talk_ratio_seller,
+                talk_ratio_client=talk_ratio_client,
+                engagement_score=engagement_score,
+                objection_handling_score=objection_handling_score,
+                closing_score=closing_score,
+                product_knowledge_score=product_knowledge_score,
+                communication_clarity_score=communication_clarity_score,
+                strengths=strengths,
+                areas_for_improvement=areas_for_improvement,
+                key_moments=key_moments,
+                suggested_improvements=suggested_improvements,
+                summary=summary,
+                full_analysis=full_analysis,
+                metadata=metadata,
+            )
+
+        report.overall_score = overall_score
+        report.talk_ratio_seller = talk_ratio_seller
+        report.talk_ratio_client = talk_ratio_client
+        report.engagement_score = engagement_score
+        report.objection_handling_score = objection_handling_score
+        report.closing_score = closing_score
+        report.product_knowledge_score = product_knowledge_score
+        report.communication_clarity_score = communication_clarity_score
+        report.strengths = strengths
+        report.areas_for_improvement = areas_for_improvement
+        report.key_moments = key_moments
+        report.suggested_improvements = suggested_improvements
+        report.summary = summary
+        report.full_analysis = full_analysis
+        report.meta_data = metadata or {}
         self.db.commit()
         self.db.refresh(report)
         return report
