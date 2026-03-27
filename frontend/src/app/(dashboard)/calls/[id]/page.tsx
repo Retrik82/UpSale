@@ -46,6 +46,22 @@ export default function CallDetailPage() {
     return apiError.response?.data?.detail || fallback;
   };
 
+  const canTranscribe = Boolean(
+    call &&
+      call.recording_path &&
+      !call.transcript &&
+      call.status !== "recording" &&
+      call.status !== "transcribing"
+  );
+
+  const canAnalyze = Boolean(
+    call &&
+      call.transcript &&
+      !call.report &&
+      call.status !== "recording" &&
+      call.status !== "analyzing"
+  );
+
   const handleTranscribe = async () => {
     if (!call) return;
     setActionLoading("transcribe");
@@ -105,17 +121,36 @@ export default function CallDetailPage() {
     try {
       const stopResponse = await api.post<RealCall>(`/calls/${call.id}/recording/stop`);
       setCall((current) => (current ? { ...current, ...stopResponse.data } : stopResponse.data));
-
-      setProcessingMessage("Transcribing call...");
-      await api.post(`/calls/${call.id}/transcribe`, {});
-
-      setProcessingMessage("Building report...");
-      await api.post(`/calls/${call.id}/analyze`);
-
-      await loadCall();
     } catch (error) {
       console.error("Failed to stop recording:", error);
-      setErrorMessage(extractError(error, "Failed to stop recording and process the call."));
+      setErrorMessage(extractError(error, "Failed to stop recording."));
+      setProcessingMessage(null);
+      setActionLoading(null);
+      await loadCall();
+      return;
+    }
+
+    try {
+      setProcessingMessage("Transcribing call...");
+      await api.post(`/calls/${call.id}/transcribe`, {});
+      await loadCall();
+    } catch (error) {
+      console.error("Failed to transcribe after stop:", error);
+      setErrorMessage(extractError(error, "Recording was saved, but transcription failed."));
+      setProcessingMessage(null);
+      setActionLoading(null);
+      await loadCall();
+      return;
+    }
+
+    try {
+      setProcessingMessage("Building report...");
+      await api.post(`/calls/${call.id}/analyze`);
+      await loadCall();
+    } catch (error) {
+      console.error("Failed to analyze after transcription:", error);
+      setErrorMessage(extractError(error, "Transcription is ready, but report generation failed."));
+      await loadCall();
     } finally {
       setProcessingMessage(null);
       setActionLoading(null);
@@ -184,7 +219,7 @@ export default function CallDetailPage() {
                 {actionLoading === "stop-recording" ? "Processing..." : "Stop Recording"}
               </button>
             )}
-            {call.status === "pending" && !call.transcript && (
+            {canTranscribe && (
               <button
                 onClick={handleTranscribe}
                 disabled={actionLoading !== null}
@@ -193,7 +228,7 @@ export default function CallDetailPage() {
                 {actionLoading === "transcribe" ? "Transcribing..." : "Transcribe"}
               </button>
             )}
-            {call.transcript && !call.report && call.status !== "analyzing" && (
+            {canAnalyze && (
               <button
                 onClick={handleAnalyze}
                 disabled={actionLoading !== null}
