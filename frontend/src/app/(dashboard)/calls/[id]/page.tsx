@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { TranscriptViewer } from "@/components/TranscriptViewer";
@@ -8,6 +8,10 @@ import { ReportCard } from "@/components/ReportCard";
 import api from "@/lib/api";
 import type { RealCall } from "@/types";
 import { formatDate, formatDuration } from "@/lib/utils";
+import {
+  startBrowserCallRecording,
+  type BrowserCallRecorder,
+} from "@/lib/browserRecorder";
 
 const RECORDING_START_STORAGE_KEY = "active-call-recording-start";
 
@@ -22,6 +26,8 @@ export default function CallDetailPage() {
   const [processingMessage, setProcessingMessage] = useState<string | null>(null);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const recorderRef = useRef<BrowserCallRecorder | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -53,12 +59,12 @@ export default function CallDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && call?.status !== "recording") {
+    if (typeof window !== "undefined" && !isRecording) {
       window.localStorage.removeItem(RECORDING_START_STORAGE_KEY);
       setRecordingStartedAt(null);
     }
 
-    if (call?.status !== "recording") {
+    if (!isRecording) {
       setElapsedSeconds(0);
       return;
     }
@@ -69,7 +75,7 @@ export default function CallDetailPage() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(
           RECORDING_START_STORAGE_KEY,
-          JSON.stringify({ callId: call.id, startedAt })
+          JSON.stringify({ callId: params.id, startedAt })
         );
       }
     }
@@ -81,7 +87,16 @@ export default function CallDetailPage() {
     updateElapsed();
     const timer = window.setInterval(updateElapsed, 1000);
     return () => window.clearInterval(timer);
-  }, [call?.id, call?.status, recordingStartedAt]);
+  }, [isRecording, params.id, recordingStartedAt]);
+
+  useEffect(() => {
+    return () => {
+      if (recorderRef.current) {
+        recorderRef.current.cancel().catch(() => undefined);
+        recorderRef.current = null;
+      }
+    };
+  }, []);
 
   const recordingTimerLabel = useMemo(() => formatDuration(elapsedSeconds), [elapsedSeconds]);
 
@@ -107,7 +122,7 @@ export default function CallDetailPage() {
     call &&
       call.recording_path &&
       !call.transcript &&
-      call.status !== "recording" &&
+      !isRecording &&
       call.status !== "transcribing"
   );
 
@@ -115,7 +130,7 @@ export default function CallDetailPage() {
     call &&
       call.transcript &&
       !call.report &&
-      call.status !== "recording" &&
+      !isRecording &&
       call.status !== "analyzing"
   );
 
@@ -157,11 +172,12 @@ export default function CallDetailPage() {
     if (!call) return;
     setActionLoading("start-recording");
     setErrorMessage(null);
-    setProcessingMessage("Starting recording...");
+    setProcessingMessage("Choose the Meet tab and enable tab audio.");
     try {
-      const response = await api.post<RealCall>(`/calls/${call.id}/recording/start`, {});
-      setCall((current) => (current ? { ...current, ...response.data } : response.data));
+      const recorder = await startBrowserCallRecording();
+      recorderRef.current = recorder;
       const startedAt = Date.now();
+      setIsRecording(true);
       setRecordingStartedAt(startedAt);
       setElapsedSeconds(0);
       if (typeof window !== "undefined") {
@@ -180,13 +196,22 @@ export default function CallDetailPage() {
   };
 
   const handleStopRecording = async () => {
-    if (!call) return;
+    if (!call || !recorderRef.current) return;
     setActionLoading("stop-recording");
     setErrorMessage(null);
-    setProcessingMessage("Stopping recording...");
+    setProcessingMessage("Saving recording...");
     try {
-      const stopResponse = await api.post<RealCall>(`/calls/${call.id}/recording/stop`);
-      setCall((current) => (current ? { ...current, ...stopResponse.data } : stopResponse.data));
+      const audioBlob = await recorderRef.current.stop();
+      recorderRef.current = null;
+      const formData = new FormData();
+      formData.append("file", new File([audioBlob], `${call.id}.wav`, { type: "audio/wav" }));
+      const uploadResponse = await api.post<RealCall>(`/calls/${call.id}/upload`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setCall((current) => (current ? { ...current, ...uploadResponse.data } : uploadResponse.data));
+      setIsRecording(false);
       setRecordingStartedAt(null);
       setElapsedSeconds(0);
       if (typeof window !== "undefined") {
@@ -194,6 +219,7 @@ export default function CallDetailPage() {
       }
     } catch (error) {
       console.error("Failed to stop recording:", error);
+      setIsRecording(false);
       setErrorMessage(extractError(error, "Failed to stop recording."));
       setProcessingMessage(null);
       setActionLoading(null);
@@ -272,7 +298,7 @@ export default function CallDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {call.status !== "recording" && !call.recording_path && (
+            {!isRecording && !call.recording_path && (
               <button
                 onClick={handleStartRecording}
                 disabled={actionLoading !== null}
@@ -281,7 +307,7 @@ export default function CallDetailPage() {
                 {actionLoading === "start-recording" ? "Starting..." : "Start Recording"}
               </button>
             )}
-            {call.status === "recording" && (
+            {isRecording && (
               <>
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
                   {recordingTimerLabel}

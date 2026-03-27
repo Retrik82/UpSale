@@ -17,7 +17,7 @@ export function Sidebar() {
   const { currentWorkspace, user, logout } = useStore();
 
   return (
-    <aside className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col">
+    <aside className="sticky top-0 h-screen w-64 shrink-0 overflow-hidden bg-white border-r border-gray-200 flex flex-col">
       <div className="p-4 border-b border-gray-200">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg flex items-center justify-center">
@@ -34,7 +34,7 @@ export function Sidebar() {
         </div>
       )}
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto p-4 space-y-1">
         {navItems.map((item) => (
           <Link
             key={item.href}

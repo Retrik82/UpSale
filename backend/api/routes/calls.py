@@ -35,6 +35,7 @@ class CallResponse(BaseModel):
     notes: Optional[str]
     created_at: str
     completed_at: Optional[str]
+    report: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -95,6 +96,26 @@ def normalize_transcript_result(transcript_result: dict) -> dict:
 
 
 def serialize_call(call) -> CallResponse:
+    report_data = None
+    if getattr(call, "report", None):
+        report_data = {
+            "id": str(call.report.id),
+            "overall_score": call.report.overall_score,
+            "talk_ratio_seller": call.report.talk_ratio_seller,
+            "talk_ratio_client": call.report.talk_ratio_client,
+            "engagement_score": call.report.engagement_score,
+            "objection_handling_score": call.report.objection_handling_score,
+            "closing_score": call.report.closing_score,
+            "product_knowledge_score": call.report.product_knowledge_score,
+            "communication_clarity_score": call.report.communication_clarity_score,
+            "strengths": call.report.strengths,
+            "areas_for_improvement": call.report.areas_for_improvement,
+            "key_moments": call.report.key_moments,
+            "suggested_improvements": call.report.suggested_improvements,
+            "summary": call.report.summary,
+            "full_analysis": call.report.full_analysis,
+        }
+
     return CallResponse(
         id=call.id,
         workspace_id=call.workspace_id,
@@ -106,6 +127,7 @@ def serialize_call(call) -> CallResponse:
         notes=call.notes,
         created_at=call.created_at.isoformat(),
         completed_at=call.completed_at.isoformat() if call.completed_at else None,
+        report=report_data,
     )
 
 

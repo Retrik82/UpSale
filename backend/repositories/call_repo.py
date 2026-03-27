@@ -30,6 +30,7 @@ class CallRepository:
     def get_workspace_calls(self, workspace_id: uuid.UUID, limit: int = 100, offset: int = 0) -> List[RealCall]:
         return (
             self.db.query(RealCall)
+            .options(joinedload(RealCall.report))
             .filter(RealCall.workspace_id == workspace_id)
             .order_by(RealCall.created_at.desc())
             .offset(offset)
