@@ -50,7 +50,7 @@ export default function CallDetailPage() {
     setActionLoading("transcribe");
     setErrorMessage(null);
     try {
-      await api.post(`/calls/${call.id}/transcribe`, { language: "en" });
+      await api.post(`/calls/${call.id}/transcribe`, {});
       await loadCall();
     } catch (error) {
       console.error("Failed to transcribe:", error);
@@ -96,11 +96,12 @@ export default function CallDetailPage() {
     setErrorMessage(null);
     try {
       await api.post(`/calls/${call.id}/recording/stop`);
-      await api.post(`/calls/${call.id}/transcribe`, { language: "en" });
+      await api.post(`/calls/${call.id}/transcribe`, {});
+      await api.post(`/calls/${call.id}/analyze`);
       await loadCall();
     } catch (error) {
       console.error("Failed to stop recording:", error);
-      setErrorMessage(extractError(error, "Failed to stop recording and transcribe the call."));
+      setErrorMessage(extractError(error, "Failed to stop recording and process the call."));
     } finally {
       setActionLoading(null);
     }
@@ -165,7 +166,7 @@ export default function CallDetailPage() {
                 disabled={actionLoading !== null}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-60"
               >
-                {actionLoading === "stop-recording" ? "Stopping..." : "Stop Recording"}
+                {actionLoading === "stop-recording" ? "Processing..." : "Stop Recording"}
               </button>
             )}
             {call.status === "pending" && !call.transcript && (

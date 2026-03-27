@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
+    WHISPER_MODEL_SIZE: str = "tiny"
+    WHISPER_DEVICE: str = "cpu"
+
     AUDIO_SAMPLE_RATE: int = 16000
     AUDIO_CHANNELS: int = 1
     AUDIO_CHUNK_SIZE: int = 1024

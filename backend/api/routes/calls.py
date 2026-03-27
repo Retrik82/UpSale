@@ -50,7 +50,7 @@ class StartRecordingRequest(BaseModel):
 
 
 class TranscriptionRequest(BaseModel):
-    language: str = "en"
+    language: Optional[str] = None
 
 
 def get_transcriber():
@@ -250,7 +250,7 @@ async def transcribe_call(
         transcriber = get_transcriber()
         transcript_result = transcriber.transcribe(
             call.recording_path,
-            language=request.language if request else "en",
+            language=request.language if request else None,
         )
         transcript_result = normalize_transcript_result(transcript_result)
         call_repo.upsert_transcript(
@@ -258,7 +258,7 @@ async def transcribe_call(
             raw_text=transcript_result.get("text", ""),
             segments=transcript_result.get("segments", []),
             speakers=transcript_result.get("speakers", []),
-            language=transcript_result.get("language", request.language if request else "en"),
+            language=transcript_result.get("language", request.language if request else None) or "unknown",
             duration_seconds=call.duration_seconds,
         )
         call = call_repo.update_status(call_id, CallStatus.PENDING)
