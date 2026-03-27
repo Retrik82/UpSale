@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { TranscriptViewer } from "@/components/TranscriptViewer";
@@ -8,6 +8,8 @@ import { ReportCard } from "@/components/ReportCard";
 import api from "@/lib/api";
 import type { RealCall } from "@/types";
 import { formatDate, formatDuration } from "@/lib/utils";
+
+const RECORDING_START_STORAGE_KEY = "active-call-recording-start";
 
 export default function CallDetailPage() {
   const params = useParams();
@@ -18,6 +20,8 @@ export default function CallDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [processingMessage, setProcessingMessage] = useState<string | null>(null);
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
     if (!token) {
@@ -27,6 +31,59 @@ export default function CallDetailPage() {
 
     loadCall();
   }, [token, params.id, router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const stored = window.localStorage.getItem(RECORDING_START_STORAGE_KEY);
+    if (!stored) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(stored) as { callId?: string; startedAt?: number };
+      if (parsed.callId === params.id && typeof parsed.startedAt === "number") {
+        setRecordingStartedAt(parsed.startedAt);
+      }
+    } catch {
+      window.localStorage.removeItem(RECORDING_START_STORAGE_KEY);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && call?.status !== "recording") {
+      window.localStorage.removeItem(RECORDING_START_STORAGE_KEY);
+      setRecordingStartedAt(null);
+    }
+
+    if (call?.status !== "recording") {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const startedAt = recordingStartedAt ?? Date.now();
+    if (!recordingStartedAt) {
+      setRecordingStartedAt(startedAt);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          RECORDING_START_STORAGE_KEY,
+          JSON.stringify({ callId: call.id, startedAt })
+        );
+      }
+    }
+
+    const updateElapsed = () => {
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    };
+
+    updateElapsed();
+    const timer = window.setInterval(updateElapsed, 1000);
+    return () => window.clearInterval(timer);
+  }, [call?.id, call?.status, recordingStartedAt]);
+
+  const recordingTimerLabel = useMemo(() => formatDuration(elapsedSeconds), [elapsedSeconds]);
 
   const loadCall = async () => {
     try {
@@ -104,6 +161,15 @@ export default function CallDetailPage() {
     try {
       const response = await api.post<RealCall>(`/calls/${call.id}/recording/start`, {});
       setCall((current) => (current ? { ...current, ...response.data } : response.data));
+      const startedAt = Date.now();
+      setRecordingStartedAt(startedAt);
+      setElapsedSeconds(0);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          RECORDING_START_STORAGE_KEY,
+          JSON.stringify({ callId: call.id, startedAt })
+        );
+      }
     } catch (error) {
       console.error("Failed to start recording:", error);
       setErrorMessage(extractError(error, "Failed to start recording."));
@@ -121,6 +187,11 @@ export default function CallDetailPage() {
     try {
       const stopResponse = await api.post<RealCall>(`/calls/${call.id}/recording/stop`);
       setCall((current) => (current ? { ...current, ...stopResponse.data } : stopResponse.data));
+      setRecordingStartedAt(null);
+      setElapsedSeconds(0);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(RECORDING_START_STORAGE_KEY);
+      }
     } catch (error) {
       console.error("Failed to stop recording:", error);
       setErrorMessage(extractError(error, "Failed to stop recording."));
@@ -200,7 +271,7 @@ export default function CallDetailPage() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {call.status !== "recording" && !call.recording_path && (
               <button
                 onClick={handleStartRecording}
@@ -211,13 +282,18 @@ export default function CallDetailPage() {
               </button>
             )}
             {call.status === "recording" && (
-              <button
-                onClick={handleStopRecording}
-                disabled={actionLoading !== null}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-60"
-              >
-                {actionLoading === "stop-recording" ? "Processing..." : "Stop Recording"}
-              </button>
+              <>
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                  {recordingTimerLabel}
+                </div>
+                <button
+                  onClick={handleStopRecording}
+                  disabled={actionLoading !== null}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-60"
+                >
+                  {actionLoading === "stop-recording" ? "Processing..." : "Stop Recording"}
+                </button>
+              </>
             )}
             {canTranscribe && (
               <button

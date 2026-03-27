@@ -8,6 +8,8 @@ import { CallCard } from "@/components/CallCard";
 import api from "@/lib/api";
 import type { RealCall, ClientTemplate } from "@/types";
 
+const CALL_TITLE_MAX_LENGTH = 255;
+
 export default function CallsPage() {
   const router = useRouter();
   const { token, currentWorkspace } = useStore();
@@ -17,6 +19,7 @@ export default function CallsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCallClientName, setNewCallClientName] = useState("");
   const [newCallTemplate, setNewCallTemplate] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -53,18 +56,22 @@ export default function CallsPage() {
     if (!currentWorkspace) return;
 
     try {
+      const trimmedName = newCallClientName.trim();
       const response = await api.post<RealCall>("/calls", {
         workspace_id: currentWorkspace.id,
-        client_name: newCallClientName || undefined,
+        client_name: trimmedName || undefined,
         client_template_id: newCallTemplate || undefined,
       });
       setCalls([response.data, ...calls]);
       setShowCreateModal(false);
       setNewCallClientName("");
       setNewCallTemplate("");
+      setCreateError(null);
       router.push(`/calls/${response.data.id}`);
     } catch (error) {
       console.error("Failed to create call:", error);
+      const apiError = error as { response?: { data?: { detail?: string } } };
+      setCreateError(apiError.response?.data?.detail || "Failed to create call.");
     }
   };
 
@@ -133,9 +140,14 @@ export default function CallsPage() {
                   type="text"
                   value={newCallClientName}
                   onChange={(e) => setNewCallClientName(e.target.value)}
+                  maxLength={CALL_TITLE_MAX_LENGTH}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   placeholder="e.g., Acme Corp"
                 />
+                <div className="mt-1 flex justify-between text-xs text-gray-500">
+                  <span>Up to {CALL_TITLE_MAX_LENGTH} characters</span>
+                  <span>{newCallClientName.length}/{CALL_TITLE_MAX_LENGTH}</span>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -154,10 +166,18 @@ export default function CallsPage() {
                   ))}
                 </select>
               </div>
+              {createError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {createError}
+                </div>
+              )}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setCreateError(null);
+                  }}
                   className="flex-1 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
                 >
                   Cancel

@@ -2,7 +2,7 @@ from uuid import UUID
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.audio.manager import recording_manager, RecordingError
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/calls", tags=["calls"])
 
 class CallCreate(BaseModel):
     workspace_id: UUID
-    client_name: Optional[str] = None
+    client_name: Optional[str] = Field(default=None, max_length=255)
     client_template_id: Optional[UUID] = None
     notes: Optional[str] = None
 
