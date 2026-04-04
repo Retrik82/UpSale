@@ -42,8 +42,9 @@ export default function TrainerPage() {
     }
   };
 
-  const handleStartSimulation = async (templateId: string) => {
-    if (!currentWorkspace) return;
+  const handleStartSimulation = async (templateId: string): Promise<string | null> => {
+    console.log("handleStartSimulation called", { templateId, currentWorkspace });
+    if (!currentWorkspace) return null;
 
     try {
       const response = await api.post("/simulations", {
@@ -51,9 +52,13 @@ export default function TrainerPage() {
         name: `Simulation - ${new Date().toLocaleDateString()}`,
         client_template_id: templateId,
       });
-      console.log("Simulation started:", response.data);
+      console.log("Simulation created:", response.data);
+      await api.post(`/simulations/${response.data.id}/start`);
+      console.log("Simulation started");
+      return response.data.id;
     } catch (error) {
       console.error("Failed to start simulation:", error);
+      return null;
     }
   };
 

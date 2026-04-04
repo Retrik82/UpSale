@@ -75,8 +75,10 @@ The SQLite database file is created automatically on startup as `salescoach.db`.
 
 1. Install dependencies:
 ```bash
-cd frontend
 npm install
+cd frontend
+
+
 ```
 
 2. Start development server:

@@ -114,8 +114,22 @@ export default function CallDetailPage() {
   };
 
   const extractError = (error: unknown, fallback: string) => {
+    const err = error as Error & { name?: string };
     const apiError = error as { response?: { data?: { detail?: string } } };
-    return apiError.response?.data?.detail || fallback;
+    
+    if (apiError.response?.data?.detail) {
+      return apiError.response.data.detail;
+    }
+    
+    if (err.name === "NotAllowedError" || err.name === "SecurityError") {
+      return "Microphone/camera access denied. Recording requires HTTPS or localhost.";
+    }
+    
+    if (err.message?.includes("secure")) {
+      return "Recording requires HTTPS. Access from localhost or use HTTPS.";
+    }
+    
+    return err.message || fallback;
   };
 
   const canTranscribe = Boolean(

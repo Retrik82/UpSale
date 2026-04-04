@@ -227,13 +227,21 @@ async def finish_simulation(
     )
 
 
-@router.post("/{simulation_id}/message", response_model=dict)
+class MessageRequest(BaseModel):
+    message: str
+    conversation_history: list[dict] = []
+    client_context: dict = {}
+
+
+@router.post("/{simulation_id}/message")
 async def send_message(
     simulation_id: UUID,
-    message: str,
+    request: MessageRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from backend.ai.client_simulator import ClientSimulator
+
     sim_repo = SimulationRepository(db)
     simulation = sim_repo.get_by_id(simulation_id)
     
@@ -251,4 +259,14 @@ async def send_message(
             detail="Simulation is not in progress",
         )
     
-    return {"status": "ok", "message": "Message sent", "simulation_id": str(simulation_id)}
+    try:
+        simulator = ClientSimulator()
+        response = await simulator.generate_response(
+            conversation_history=request.conversation_history,
+            client_context=request.client_context,
+        )
+    except Exception as e:
+        print(f"Simulation error: {e}")
+        response = "I'm sorry, I'm having trouble responding right now."
+    
+    return {"response": response}

@@ -63,6 +63,10 @@ export async function startBrowserCallRecording(): Promise<BrowserCallRecorder> 
     throw new Error("Browser recording is not available in this environment.");
   }
 
+  if (!window.isSecureContext) {
+    throw new Error("Recording requires HTTPS. Access this site using https:// or http://localhost");
+  }
+
   const displayStream = await navigator.mediaDevices.getDisplayMedia({
     video: true,
     audio: true,

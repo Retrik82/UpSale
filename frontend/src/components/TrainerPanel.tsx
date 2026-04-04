@@ -2,27 +2,46 @@
 
 import { useState } from "react";
 import type { ClientTemplate } from "@/types";
+import api from "@/lib/api";
 
 interface TrainerPanelProps {
   templates: ClientTemplate[];
-  onStartSimulation: (templateId: string) => void;
+  onStartSimulation: (templateId: string) => Promise<string | null>;
 }
 
 export function TrainerPanel({ templates, onStartSimulation }: TrainerPanelProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<ClientTemplate | null>(null);
+  const [simulationId, setSimulationId] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [input, setInput] = useState("");
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    console.log("handleStart called", { selectedTemplate: JSON.stringify(selectedTemplate) });
     if (selectedTemplate) {
-      setIsSimulating(true);
-      setMessages([
-        {
-          role: "assistant",
-          content: `Hello! I'm ${selectedTemplate.company_name || "your potential client"}. ${selectedTemplate.description || "Let's discuss your product."}`,
-        },
-      ]);
+      try {
+        const templateId = String(selectedTemplate.id);
+        console.log("Calling onStartSimulation with:", templateId);
+        const simId = await onStartSimulation(templateId);
+        console.log("simId returned:", simId);
+        if (simId) {
+          setSimulationId(simId);
+          setIsSimulating(true);
+          const initialMessage = `Hello! I'm ${selectedTemplate.company_name || "your potential client"}. ${selectedTemplate.description || "Let's discuss your product."}`;
+          setMessages([
+            {
+              role: "assistant",
+              content: initialMessage,
+            },
+          ]);
+        } else {
+          console.error("Failed to start simulation: no simulation ID returned");
+          alert("Failed to start simulation. Please check console for details.");
+        }
+      } catch (error) {
+        console.error("Failed to start simulation:", error);
+        alert("Failed to start simulation: " + error);
+      }
     }
   };
 
@@ -30,21 +49,44 @@ export function TrainerPanel({ templates, onStartSimulation }: TrainerPanelProps
     if (!input.trim()) return;
 
     const userMessage = { role: "user", content: input };
-    setMessages([...messages, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput("");
 
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Thank you for your response. This is a simulated client response." },
-      ]);
-    }, 1000);
+    try {
+      const response = await api.post(`/simulations/${simulationId}/message`, {
+        message: input,
+        conversation_history: newMessages,
+        client_context: {
+          company_name: selectedTemplate?.company_name,
+          industry: selectedTemplate?.industry,
+          pain_points: selectedTemplate?.pain_points,
+          description: selectedTemplate?.description,
+        },
+      });
+      setMessages([...newMessages, { role: "assistant", content: response.data.response }]);
+    } catch (error) {
+      setMessages([...newMessages, { role: "assistant", content: "Sorry, I couldn't respond. Please try again." }]);
+    }
   };
 
-  const handleEnd = () => {
+  const handleEnd = async () => {
+    if (simulationId) {
+      try {
+        const transcript = messages.map(m => `${m.role}: ${m.content}`).join("\n");
+        await api.post(`/simulations/${simulationId}/finish`, {
+          transcript,
+          metrics: {},
+          duration_seconds: 0,
+        });
+      } catch (e) {
+        console.error("Failed to finish simulation:", e);
+      }
+    }
     setIsSimulating(false);
     setMessages([]);
     setSelectedTemplate(null);
+    setSimulationId(null);
   };
 
   return (
@@ -58,6 +100,9 @@ export function TrainerPanel({ templates, onStartSimulation }: TrainerPanelProps
 
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Select a Client Profile</h3>
+            {templates.length === 0 ? (
+              <p className="text-gray-500 text-sm">No client profiles available. Create one in Templates first.</p>
+            ) : (
             <div className="grid gap-3">
               {templates.map((template) => (
                 <button
@@ -88,6 +133,7 @@ export function TrainerPanel({ templates, onStartSimulation }: TrainerPanelProps
                 </button>
               ))}
             </div>
+            )}
           </div>
 
           <button
