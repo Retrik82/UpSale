@@ -72,6 +72,33 @@ class CallRepository:
             self.db.refresh(call)
         return call
 
+    def update_sale_completed(self, call_id: uuid.UUID, sale_completed: bool) -> Optional[RealCall]:
+        call = self.get_by_id(call_id)
+        if call:
+            call.sale_completed = sale_completed
+            self.db.commit()
+            self.db.refresh(call)
+        return call
+
+    def get_sale_stats(self, workspace_id: uuid.UUID, user_id: Optional[uuid.UUID] = None) -> dict:
+        from sqlalchemy import func
+        query = self.db.query(RealCall).filter(RealCall.workspace_id == workspace_id)
+        if user_id:
+            from backend.models.workspace_member import WorkspaceMember
+            member_ids = self.db.query(WorkspaceMember.user_id).filter(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id
+            ).subquery()
+            query = query.filter(RealCall.id.in_(member_ids))
+        
+        total_calls = query.count()
+        successful_sales = query.filter(RealCall.sale_completed == True).count()
+        return {
+            "total_calls": total_calls,
+            "successful_sales": successful_sales,
+            "conversion_rate": (successful_sales / total_calls * 100) if total_calls > 0 else 0
+        }
+
     def update_recording(self, call_id: uuid.UUID, recording_path: str, duration_seconds: int) -> Optional[RealCall]:
         call = self.get_by_id(call_id)
         if call:

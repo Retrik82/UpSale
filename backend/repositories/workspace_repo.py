@@ -29,11 +29,12 @@ class WorkspaceRepository:
             .all()
         )
 
-    def create(self, name: str, owner_id: uuid.UUID, description: Optional[str] = None) -> Workspace:
+    def create(self, name: str, owner_id: uuid.UUID, description: Optional[str] = None, password: Optional[str] = None) -> Workspace:
         workspace = Workspace(
             name=name,
             description=description,
             owner_id=owner_id,
+            password=password,
         )
         self.db.add(workspace)
         self.db.flush()
@@ -104,3 +105,20 @@ class WorkspaceRepository:
             .filter(WorkspaceMember.workspace_id == workspace_id)
             .all()
         )
+
+    def join_by_password(self, workspace_id: uuid.UUID, user_id: uuid.UUID, password: str) -> Optional[WorkspaceMember]:
+        workspace = self.get_by_id(workspace_id)
+        if not workspace or workspace.password != password:
+            return None
+        existing = self.get_member(workspace_id, user_id)
+        if existing:
+            return existing
+        member = WorkspaceMember(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            role=WorkspaceRole.MEMBER,
+        )
+        self.db.add(member)
+        self.db.commit()
+        self.db.refresh(member)
+        return member

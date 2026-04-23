@@ -7,9 +7,11 @@ from typing import Optional
 
 from backend.core.db import get_db
 from backend.core.security import get_current_user
+from backend.core.security import get_password_hash
 from backend.models.user import User
 from backend.models.workspace_member import WorkspaceRole
 from backend.repositories.workspace_repo import WorkspaceRepository
+from backend.repositories.user_repo import UserRepository
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -17,6 +19,7 @@ router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 class WorkspaceCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    password: Optional[str] = None
 
 
 class WorkspaceResponse(BaseModel):
@@ -42,6 +45,14 @@ class MemberResponse(BaseModel):
 class AddMemberRequest(BaseModel):
     email: str
     role: WorkspaceRole = WorkspaceRole.MEMBER
+
+
+class JoinByPasswordRequest(BaseModel):
+    password: str
+
+
+class SetWorkspacePasswordRequest(BaseModel):
+    password: str
 
 
 @router.get("", response_model=list[WorkspaceResponse])
@@ -189,3 +200,75 @@ async def add_workspace_member(
         role=member.role.value,
         created_at=member.created_at.isoformat(),
     )
+
+
+@router.post("/{workspace_id}/join", response_model=MemberResponse)
+async def join_workspace_by_password(
+    workspace_id: UUID,
+    request: JoinByPasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    workspace_repo = WorkspaceRepository(db)
+    member = workspace_repo.join_by_password(workspace_id, current_user.id, request.password)
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid workspace password",
+        )
+    return MemberResponse(
+        id=member.id,
+        user_id=member.user_id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        role=member.role.value,
+        created_at=member.created_at.isoformat(),
+    )
+
+
+@router.post("/{workspace_id}/set-password", response_model=WorkspaceResponse)
+async def set_workspace_password(
+    workspace_id: UUID,
+    request: SetWorkspacePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    workspace_repo = WorkspaceRepository(db)
+    current_member = workspace_repo.get_member(workspace_id, current_user.id)
+    if not current_member or current_member.role not in [WorkspaceRole.OWNER, WorkspaceRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to set workspace password",
+        )
+    workspace = workspace_repo.get_by_id(workspace_id)
+    if not workspace:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found",
+        )
+    workspace.password = get_password_hash(request.password) if request.password else None
+    workspace_repo.update(workspace)
+    return WorkspaceResponse(
+        id=workspace.id,
+        name=workspace.name,
+        description=workspace.description,
+        owner_id=workspace.owner_id,
+        created_at=workspace.created_at.isoformat(),
+    )
+
+
+@router.delete("/{workspace_id}/members/{target_user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_workspace_member(
+    workspace_id: UUID,
+    target_user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    workspace_repo = WorkspaceRepository(db)
+    current_member = workspace_repo.get_member(workspace_id, current_user.id)
+    if not current_member or current_member.role not in [WorkspaceRole.OWNER, WorkspaceRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to remove members",
+        )
+    workspace_repo.remove_member(workspace_id, target_user_id)

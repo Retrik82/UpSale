@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer, Boolean
 from sqlalchemy.orm import relationship
 
 from backend.core.db import Base
@@ -28,6 +28,7 @@ class RealCall(Base):
     status = Column(String(50), default=CallStatus.PENDING.value, nullable=False)
     client_name = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
+    sale_completed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)

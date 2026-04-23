@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey
+from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 
 from backend.core.db import Base
@@ -13,6 +13,7 @@ class Workspace(Base):
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     description = Column(String(1000), nullable=True)
+    password = Column(String(255), nullable=True)
     owner_id = Column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

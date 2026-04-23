@@ -40,6 +40,8 @@ class UserResponse(BaseModel):
     email: str
     full_name: str | None
     avatar_url: str | None
+    system_role: str
+    is_blocked: bool
     created_at: str
 
     class Config:
@@ -69,6 +71,8 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         email=user.email,
         full_name=user.full_name,
         avatar_url=user.avatar_url,
+        system_role=user.system_role.value,
+        is_blocked=user.is_blocked,
         created_at=user.created_at.isoformat(),
     )
 
@@ -84,6 +88,12 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid email or password",
         )
     
+    if user.is_blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is blocked",
+        )
+    
     access_token = create_access_token(data={"sub": str(user.id)})
     
     return TokenResponse(access_token=access_token)
@@ -96,5 +106,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
         email=current_user.email,
         full_name=current_user.full_name,
         avatar_url=current_user.avatar_url,
+        system_role=current_user.system_role.value,
+        is_blocked=current_user.is_blocked,
         created_at=current_user.created_at.isoformat(),
     )

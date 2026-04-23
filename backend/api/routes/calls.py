@@ -33,6 +33,7 @@ class CallResponse(BaseModel):
     status: str
     client_name: Optional[str]
     notes: Optional[str]
+    sale_completed: bool
     created_at: str
     completed_at: Optional[str]
     report: Optional[dict] = None
@@ -125,6 +126,7 @@ def serialize_call(call) -> CallResponse:
         status=call.status,
         client_name=call.client_name,
         notes=call.notes,
+        sale_completed=call.sale_completed,
         created_at=call.created_at.isoformat(),
         completed_at=call.completed_at.isoformat() if call.completed_at else None,
         report=report_data,
@@ -235,6 +237,7 @@ async def get_call(
         status=call.status,
         client_name=call.client_name,
         notes=call.notes,
+        sale_completed=call.sale_completed,
         created_at=call.created_at.isoformat(),
         completed_at=call.completed_at.isoformat() if call.completed_at else None,
         transcript=transcript_data,
@@ -476,4 +479,32 @@ async def upload_recording(
     call_repo.update_recording(call_id, file_path, duration)
     call = call_repo.get_by_id(call_id)
 
+    return serialize_call(call)
+
+
+class UpdateSaleCompletedRequest(BaseModel):
+    sale_completed: bool
+
+
+@router.patch("/{call_id}/sale-completed", response_model=CallResponse)
+async def update_sale_completed(
+    call_id: UUID,
+    request: UpdateSaleCompletedRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    call_repo = CallRepository(db)
+    call = call_repo.get_by_id(call_id)
+    
+    if not call:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Call not found",
+        )
+    
+    check_workspace_access(db, call.workspace_id, current_user.id)
+    
+    call_repo.update_sale_completed(call_id, request.sale_completed)
+    call = call_repo.get_by_id(call_id)
+    
     return serialize_call(call)
