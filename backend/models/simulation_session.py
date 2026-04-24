@@ -21,6 +21,7 @@ class SimulationSession(Base):
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     workspace_id = Column(GUID(), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     client_template_id = Column(GUID(), ForeignKey("client_templates.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(255), nullable=False)
     scenario = Column(Text, nullable=True)

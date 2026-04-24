@@ -41,12 +41,14 @@ class CallRepository:
     def create(
         self,
         workspace_id: uuid.UUID,
+        user_id: uuid.UUID,
         client_name: Optional[str] = None,
         client_template_id: Optional[uuid.UUID] = None,
         notes: Optional[str] = None,
     ) -> RealCall:
         call = RealCall(
             workspace_id=workspace_id,
+            user_id=user_id,
             client_template_id=client_template_id,
             client_name=client_name,
             notes=notes,
@@ -84,19 +86,14 @@ class CallRepository:
         from sqlalchemy import func
         query = self.db.query(RealCall).filter(RealCall.workspace_id == workspace_id)
         if user_id:
-            from backend.models.workspace_member import WorkspaceMember
-            member_ids = self.db.query(WorkspaceMember.user_id).filter(
-                WorkspaceMember.workspace_id == workspace_id,
-                WorkspaceMember.user_id == user_id
-            ).subquery()
-            query = query.filter(RealCall.id.in_(member_ids))
+            query = query.filter(RealCall.user_id == user_id)
         
         total_calls = query.count()
         successful_sales = query.filter(RealCall.sale_completed == True).count()
         return {
             "total_calls": total_calls,
             "successful_sales": successful_sales,
-            "conversion_rate": (successful_sales / total_calls * 100) if total_calls > 0 else 0
+            "conversion_rate": (successful_sales / total_calls * 100) if total_calls > 0 else 0.0
         }
 
     def update_recording(self, call_id: uuid.UUID, recording_path: str, duration_seconds: int) -> Optional[RealCall]:

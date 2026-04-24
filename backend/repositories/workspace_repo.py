@@ -2,6 +2,7 @@ import uuid
 from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload
 
+from backend.core.security import verify_password, get_password_hash
 from backend.models.workspace import Workspace
 from backend.models.workspace_member import WorkspaceMember, WorkspaceRole
 
@@ -108,7 +109,9 @@ class WorkspaceRepository:
 
     def join_by_password(self, workspace_id: uuid.UUID, user_id: uuid.UUID, password: str) -> Optional[WorkspaceMember]:
         workspace = self.get_by_id(workspace_id)
-        if not workspace or workspace.password != password:
+        if not workspace or not workspace.password:
+            return None
+        if not verify_password(password, workspace.password):
             return None
         existing = self.get_member(workspace_id, user_id)
         if existing:

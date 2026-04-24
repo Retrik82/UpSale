@@ -171,6 +171,7 @@ async def create_call(
     call_repo = CallRepository(db)
     call = call_repo.create(
         workspace_id=request.workspace_id,
+        user_id=current_user.id,
         client_name=request.client_name,
         client_template_id=request.client_template_id,
         notes=request.notes,
