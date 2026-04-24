@@ -22,7 +22,7 @@ security = HTTPBearer()
 
 class SystemRole(str, Enum):
     ADMIN = "admin"
-    EMPLOYEE = "employee"
+    SALES_MANAGER = "sales_manager"
 
 
 class WorkspaceRole(str, Enum):
@@ -74,7 +74,7 @@ class User:
         email: str,
         hashed_password: str,
         full_name: Optional[str] = None,
-        system_role: SystemRole = SystemRole.EMPLOYEE,
+        system_role: SystemRole = SystemRole.SALES_MANAGER,
         is_blocked: bool = False,
         created_at: datetime = None,
     ):
@@ -183,6 +183,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     full_name: Optional[str] = None
+    system_role: SystemRole
 
 
 class LoginRequest(BaseModel):
@@ -207,7 +208,7 @@ class UserResponse(BaseModel):
 class WorkspaceCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    password: Optional[str] = None
+    password: str
 
 
 class WorkspaceResponse(BaseModel):
@@ -216,12 +217,15 @@ class WorkspaceResponse(BaseModel):
     description: Optional[str]
     owner_id: str
     created_at: str
+    requires_password: bool = False
+    is_member: bool = False
 
 
 class MemberResponse(BaseModel):
     id: str
     user_id: str
     email: str
+    full_name: Optional[str]
     role: str
     created_at: str
 
@@ -259,6 +263,44 @@ class SalesStatsResponse(BaseModel):
     total_calls: int
     successful_sales: int
     conversion_rate: float
+    total_members: int
+
+
+def get_workspace_membership(workspace_id: str, user_id: str) -> Optional[WorkspaceMember]:
+    for member in stores["workspace_members"].values():
+        if member.workspace_id == workspace_id and member.user_id == user_id:
+            return member
+    return None
+
+
+def ensure_workspace_member(workspace_id: str, current_user: User) -> WorkspaceMember:
+    member = get_workspace_membership(workspace_id, str(current_user.id))
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this workspace",
+        )
+    return member
+
+
+def build_sales_stats(workspace_id: str, user_id: Optional[str] = None) -> SalesStatsResponse:
+    calls = [
+        call for call in stores["calls"].values()
+        if call.workspace_id == workspace_id and (user_id is None or call.user_id == user_id)
+    ]
+    total_calls = len(calls)
+    successful_sales = sum(1 for call in calls if call.sale_completed)
+    conversion_rate = (successful_sales / total_calls * 100) if total_calls > 0 else 0.0
+    total_members = len(
+        {str(member.user_id) for member in stores["workspace_members"].values() if member.workspace_id == workspace_id}
+    )
+
+    return SalesStatsResponse(
+        total_calls=total_calls,
+        successful_sales=successful_sales,
+        conversion_rate=conversion_rate,
+        total_members=total_members,
+    )
 
 
 @app.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -275,6 +317,7 @@ async def register(request: RegisterRequest):
         email=request.email,
         hashed_password=get_password_hash(request.password),
         full_name=request.full_name,
+        system_role=request.system_role,
     )
     stores["users"][str(user.id)] = user
     
@@ -329,18 +372,41 @@ async def list_workspaces(current_user: User = Depends(get_current_user)):
     workspace_ids = set()
     for member in stores["workspace_members"].values():
         if member.user_id == str(current_user.id):
-            workspace_ids.add(member.workspace_id)
+            workspace_ids.add(str(member.workspace_id))
     
     return [
         WorkspaceResponse(
-            id=w.id,
+            id=str(w.id),
             name=w.name,
             description=w.description,
-            owner_id=w.owner_id,
+            owner_id=str(w.owner_id),
             created_at=w.created_at.isoformat(),
+            requires_password=bool(w.password),
+            is_member=True,
         )
         for w in stores["workspaces"].values()
-        if w.id in workspace_ids
+        if str(w.id) in workspace_ids
+    ]
+
+
+@app.get("/workspaces/discover", response_model=list[WorkspaceResponse])
+async def discover_workspaces(current_user: User = Depends(get_current_user)):
+    workspace_ids = set()
+    for member in stores["workspace_members"].values():
+        if member.user_id == str(current_user.id):
+            workspace_ids.add(str(member.workspace_id))
+
+    return [
+        WorkspaceResponse(
+            id=str(workspace.id),
+            name=workspace.name,
+            description=workspace.description,
+            owner_id=str(workspace.owner_id),
+            created_at=workspace.created_at.isoformat(),
+            requires_password=bool(workspace.password),
+            is_member=str(workspace.id) in workspace_ids,
+        )
+        for workspace in stores["workspaces"].values()
     ]
 
 
@@ -349,28 +415,43 @@ async def create_workspace(
     request: WorkspaceCreate,
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.system_role != SystemRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can create workspaces",
+        )
+
+    if not request.password.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Workspace password is required",
+        )
+
     workspace = Workspace(
-        id=uuid4(),
+        id=str(uuid4()),
         name=request.name,
         owner_id=str(current_user.id),
         description=request.description,
+        password=get_password_hash(request.password),
     )
-    stores["workspaces"][workspace.id] = workspace
+    stores["workspaces"][str(workspace.id)] = workspace
     
     member = WorkspaceMember(
-        id=uuid4(),
+        id=str(uuid4()),
         workspace_id=workspace.id,
         user_id=str(current_user.id),
         role=WorkspaceRole.OWNER,
     )
-    stores["workspace_members"][member.id] = member
+    stores["workspace_members"][str(member.id)] = member
     
     return WorkspaceResponse(
-        id=workspace.id,
+        id=str(workspace.id),
         name=workspace.name,
         description=workspace.description,
-        owner_id=workspace.owner_id,
+        owner_id=str(workspace.owner_id),
         created_at=workspace.created_at.isoformat(),
+        requires_password=True,
+        is_member=True,
     )
 
 
@@ -379,17 +460,7 @@ async def list_workspace_members(
     workspace_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    member = None
-    for m in stores["workspace_members"].values():
-        if m.workspace_id == workspace_id and m.user_id == str(current_user.id):
-            member = m
-            break
-    
-    if not member:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this workspace",
-        )
+    ensure_workspace_member(workspace_id, current_user)
     
     result = []
     for m in stores["workspace_members"].values():
@@ -397,22 +468,44 @@ async def list_workspace_members(
             user = stores["users"].get(m.user_id)
             if user:
                 result.append(MemberResponse(
-                    id=m.id,
-                    user_id=m.user_id,
+                    id=str(m.id),
+                    user_id=str(m.user_id),
                     email=user.email,
+                    full_name=user.full_name,
                     role=m.role.value,
                     created_at=m.created_at.isoformat(),
                 ))
     return result
 
 
-@app.post("/{workspace_id}/join", response_model=MemberResponse)
+@app.get("/workspaces/{workspace_id}/my-stats", response_model=SalesStatsResponse)
+async def get_my_workspace_stats(
+    workspace_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.system_role != SystemRole.SALES_MANAGER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only sales managers can view personal workspace stats",
+        )
+
+    ensure_workspace_member(workspace_id, current_user)
+    return build_sales_stats(workspace_id, str(current_user.id))
+
+
+@app.post("/workspaces/{workspace_id}/join", response_model=MemberResponse)
 async def join_workspace_by_password(
     workspace_id: str,
     request: JoinByPasswordRequest,
     current_user: User = Depends(get_current_user),
 ):
-    workspace = stores["workspaces"].get(workspace_id)
+    if current_user.system_role != SystemRole.SALES_MANAGER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only sales managers can join workspaces by password",
+        )
+
+    workspace = stores["workspaces"].get(str(workspace_id))
     if not workspace or not workspace.password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -428,25 +521,27 @@ async def join_workspace_by_password(
         if m.workspace_id == workspace_id and m.user_id == str(current_user.id):
             user = stores["users"].get(m.user_id)
             return MemberResponse(
-                id=m.id,
-                user_id=m.user_id,
+                id=str(m.id),
+                user_id=str(m.user_id),
                 email=user.email if user else "",
+                full_name=user.full_name if user else None,
                 role=m.role.value,
                 created_at=m.created_at.isoformat(),
             )
     
     member = WorkspaceMember(
-        id=uuid4(),
-        workspace_id=workspace_id,
+        id=str(uuid4()),
+        workspace_id=str(workspace_id),
         user_id=str(current_user.id),
         role=WorkspaceRole.MEMBER,
     )
-    stores["workspace_members"][member.id] = member
+    stores["workspace_members"][str(member.id)] = member
     
     return MemberResponse(
-        id=member.id,
-        user_id=member.user_id,
+        id=str(member.id),
+        user_id=str(member.user_id),
         email=current_user.email,
+        full_name=current_user.full_name,
         role=member.role.value,
         created_at=member.created_at.isoformat(),
     )
@@ -458,18 +553,14 @@ async def set_workspace_password(
     request: SetWorkspacePasswordRequest,
     current_user: User = Depends(get_current_user),
 ):
-    workspace = stores["workspaces"].get(workspace_id)
+    workspace = stores["workspaces"].get(str(workspace_id))
     if not workspace:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found",
         )
     
-    member = None
-    for m in stores["workspace_members"].values():
-        if m.workspace_id == workspace_id and m.user_id == str(current_user.id):
-            member = m
-            break
+    member = get_workspace_membership(workspace_id, str(current_user.id))
     
     if not member or member.role not in [WorkspaceRole.OWNER, WorkspaceRole.ADMIN]:
         raise HTTPException(
@@ -480,11 +571,13 @@ async def set_workspace_password(
     workspace.password = get_password_hash(request.password) if request.password else None
     
     return WorkspaceResponse(
-        id=workspace.id,
+        id=str(workspace.id),
         name=workspace.name,
         description=workspace.description,
-        owner_id=workspace.owner_id,
+        owner_id=str(workspace.owner_id),
         created_at=workspace.created_at.isoformat(),
+        requires_password=bool(workspace.password),
+        is_member=True,
     )
 
 
@@ -494,18 +587,14 @@ async def remove_workspace_member(
     target_user_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    workspace = stores["workspaces"].get(workspace_id)
+    workspace = stores["workspaces"].get(str(workspace_id))
     if not workspace:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found",
         )
     
-    member = None
-    for m in stores["workspace_members"].values():
-        if m.workspace_id == workspace_id and m.user_id == str(current_user.id):
-            member = m
-            break
+    member = get_workspace_membership(workspace_id, str(current_user.id))
     
     if not member or member.role not in [WorkspaceRole.OWNER, WorkspaceRole.ADMIN]:
         raise HTTPException(
@@ -518,24 +607,38 @@ async def remove_workspace_member(
             del stores["workspace_members"][m_id]
 
 
+@app.delete("/workspaces/{workspace_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_workspace(
+    workspace_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    membership = get_workspace_membership(workspace_id, str(current_user.id))
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace membership not found",
+        )
+
+    if membership.role == WorkspaceRole.OWNER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Workspace owner cannot leave the workspace",
+        )
+
+    for member_id, member in list(stores["workspace_members"].items()):
+        if member.workspace_id == workspace_id and member.user_id == str(current_user.id):
+            del stores["workspace_members"][member_id]
+            return
+
+
 @app.get("/calls", response_model=list[CallResponse])
 async def list_calls(
     workspace_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    member = None
-    for m in stores["workspace_members"].values():
-        if m.workspace_id == workspace_id and m.user_id == str(current_user.id):
-            member = m
-            break
-    
-    if not member:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this workspace",
-        )
-    
-    return [
+    ensure_workspace_member(workspace_id, current_user)
+
+    calls = [
         CallResponse(
             id=c.id,
             workspace_id=c.workspace_id,
@@ -550,44 +653,45 @@ async def list_calls(
         if c.workspace_id == workspace_id
     ]
 
+    if current_user.system_role == SystemRole.SALES_MANAGER:
+        calls = [call for call in calls if call.user_id == str(current_user.id)]
+
+    return calls
+
 
 @app.post("/calls", response_model=CallResponse, status_code=status.HTTP_201_CREATED)
 async def create_call(
     request: CallCreate,
     current_user: User = Depends(get_current_user),
 ):
-    workspace = stores["workspaces"].get(request.workspace_id)
+    if current_user.system_role != SystemRole.SALES_MANAGER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only sales managers can create calls",
+        )
+
+    workspace = stores["workspaces"].get(str(request.workspace_id))
     if not workspace:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found",
         )
     
-    member = None
-    for m in stores["workspace_members"].values():
-        if m.workspace_id == request.workspace_id and m.user_id == str(current_user.id):
-            member = m
-            break
-    
-    if not member:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this workspace",
-        )
+    ensure_workspace_member(request.workspace_id, current_user)
     
     call = RealCall(
-        id=uuid4(),
-        workspace_id=request.workspace_id,
+        id=str(uuid4()),
+        workspace_id=str(request.workspace_id),
         user_id=str(current_user.id),
         client_name=request.client_name,
         notes=request.notes,
     )
-    stores["calls"][call.id] = call
+    stores["calls"][str(call.id)] = call
     
     return CallResponse(
-        id=call.id,
-        workspace_id=call.workspace_id,
-        user_id=call.user_id,
+        id=str(call.id),
+        workspace_id=str(call.workspace_id),
+        user_id=str(call.user_id),
         client_name=call.client_name,
         notes=call.notes,
         sale_completed=call.sale_completed,
@@ -601,29 +705,25 @@ async def get_call(
     call_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    call = stores["calls"].get(call_id)
+    call = stores["calls"].get(str(call_id))
     if not call:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Call not found",
         )
     
-    member = None
-    for m in stores["workspace_members"].values():
-        if m.workspace_id == call.workspace_id and m.user_id == str(current_user.id):
-            member = m
-            break
-    
-    if not member:
+    ensure_workspace_member(call.workspace_id, current_user)
+
+    if current_user.system_role == SystemRole.SALES_MANAGER and call.user_id != str(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this workspace",
+            detail="Sales managers can only view their own calls",
         )
     
     return CallResponse(
-        id=call.id,
-        workspace_id=call.workspace_id,
-        user_id=call.user_id,
+        id=str(call.id),
+        workspace_id=str(call.workspace_id),
+        user_id=str(call.user_id),
         client_name=call.client_name,
         notes=call.notes,
         sale_completed=call.sale_completed,
@@ -638,31 +738,33 @@ async def update_sale_completed(
     request: UpdateSaleCompletedRequest,
     current_user: User = Depends(get_current_user),
 ):
-    call = stores["calls"].get(call_id)
+    call = stores["calls"].get(str(call_id))
     if not call:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Call not found",
         )
     
-    member = None
-    for m in stores["workspace_members"].values():
-        if m.workspace_id == call.workspace_id and m.user_id == str(current_user.id):
-            member = m
-            break
-    
-    if not member:
+    if current_user.system_role != SystemRole.SALES_MANAGER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this workspace",
+            detail="Only sales managers can update call results",
+        )
+
+    ensure_workspace_member(call.workspace_id, current_user)
+
+    if call.user_id != str(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sales managers can only update their own calls",
         )
     
     call.sale_completed = request.sale_completed
     
     return CallResponse(
-        id=call.id,
-        workspace_id=call.workspace_id,
-        user_id=call.user_id,
+        id=str(call.id),
+        workspace_id=str(call.workspace_id),
+        user_id=str(call.user_id),
         client_name=call.client_name,
         notes=call.notes,
         sale_completed=call.sale_completed,
@@ -676,7 +778,7 @@ async def list_employees(current_user: User = Depends(get_current_user)):
     if current_user.system_role != SystemRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can view employees",
+            detail="Only admins can view sales managers",
         )
     
     return [
@@ -689,7 +791,7 @@ async def list_employees(current_user: User = Depends(get_current_user)):
             created_at=u.created_at.isoformat(),
         )
         for u in stores["users"].values()
-        if u.system_role == SystemRole.EMPLOYEE
+        if u.system_role == SystemRole.SALES_MANAGER
     ]
 
 
@@ -701,7 +803,7 @@ async def block_employee(
     if current_user.system_role != SystemRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can block employees",
+            detail="Only admins can block sales managers",
         )
     
     user = stores["users"].get(user_id)
@@ -731,7 +833,7 @@ async def delete_employee(
     if current_user.system_role != SystemRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can delete employees",
+            detail="Only admins can delete sales managers",
         )
     
     if user_id not in stores["users"]:
@@ -759,42 +861,15 @@ async def get_workspace_stats(
             detail="Only admins can view workspace stats",
         )
     
-    workspace = stores["workspaces"].get(workspace_id)
+    workspace = stores["workspaces"].get(str(workspace_id))
     if not workspace:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found",
         )
     
-    member = None
-    for m in stores["workspace_members"].values():
-        if m.workspace_id == workspace_id and m.user_id == str(current_user.id):
-            member = m
-            break
-    
-    if not member:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this workspace",
-        )
-    
-    calls = [
-        c for c in stores["calls"].values()
-        if c.workspace_id == workspace_id
-    ]
-    
-    if user_id:
-        calls = [c for c in calls if c.user_id == user_id]
-    
-    total_calls = len(calls)
-    successful_sales = sum(1 for c in calls if c.sale_completed)
-    conversion_rate = (successful_sales / total_calls * 100) if total_calls > 0 else 0.0
-    
-    return SalesStatsResponse(
-        total_calls=total_calls,
-        successful_sales=successful_sales,
-        conversion_rate=conversion_rate,
-    )
+    ensure_workspace_member(workspace_id, current_user)
+    return build_sales_stats(workspace_id, user_id)
 
 
 @app.post("/admin/workspaces/{workspace_id}/members/{target_user_id}/remove", status_code=status.HTTP_204_NO_CONTENT)
@@ -809,9 +884,71 @@ async def remove_member_from_workspace(
             detail="Only admins can remove members",
         )
     
+    target_membership = get_workspace_membership(workspace_id, target_user_id)
+    if not target_membership:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace membership not found",
+        )
+
+    if target_membership.role == WorkspaceRole.OWNER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Workspace owner cannot be removed",
+        )
+
     for m_id, m in list(stores["workspace_members"].items()):
         if m.workspace_id == workspace_id and m.user_id == target_user_id:
             del stores["workspace_members"][m_id]
+            return
+
+
+@app.post("/admin/workspaces/{workspace_id}/members/{target_user_id}/remove-and-block", response_model=UserResponse)
+async def remove_and_block_member_from_workspace(
+    workspace_id: str,
+    target_user_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.system_role != SystemRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can remove and block members",
+        )
+
+    target_user = stores["users"].get(target_user_id)
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    target_membership = get_workspace_membership(workspace_id, target_user_id)
+    if not target_membership:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace membership not found",
+        )
+
+    if target_membership.role == WorkspaceRole.OWNER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Workspace owner cannot be removed or blocked",
+        )
+
+    for member_id, member in list(stores["workspace_members"].items()):
+        if member.workspace_id == workspace_id and member.user_id == target_user_id:
+            del stores["workspace_members"][member_id]
+
+    target_user.is_blocked = True
+
+    return UserResponse(
+        id=str(target_user.id),
+        email=target_user.email,
+        full_name=target_user.full_name,
+        system_role=target_user.system_role.value,
+        is_blocked=target_user.is_blocked,
+        created_at=target_user.created_at.isoformat(),
+    )
 
 
 @app.get("/health")
