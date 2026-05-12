@@ -25,7 +25,87 @@ export function WorkspaceSelector() {
     currentWorkspace,
     setCurrentWorkspace,
     setWorkspaces: setStoreWorkspaces,
+    appLanguage,
   } = useStore();
+  const text = appLanguage === "ru"
+    ? {
+        loadError: "Не удалось загрузить рабочие пространства.",
+        createError: "Не удалось создать рабочее пространство.",
+        notFound: "Рабочее пространство с таким названием не найдено.",
+        leaveError: "Не удалось покинуть рабочее пространство.",
+        enterPassword: "Введите пароль рабочего пространства.",
+        joinError: "Не удалось присоединиться к рабочему пространству.",
+        choose: "Выберите рабочее пространство",
+        adminHint: "Создавайте рабочие пространства и открывайте то, которым хотите управлять.",
+        salesHint: "Вступайте в рабочие пространства по паролю и переключайтесь между теми, к которым у вас уже есть доступ.",
+        findByName: "Найти рабочее пространство по имени",
+        startTyping: "Начните вводить название рабочего пространства",
+        find: "Найти",
+        yourWorkspaces: "Ваши рабочие пространства",
+        openMember: "Откройте любое рабочее пространство, в котором вы уже состоите.",
+        noneJoined: "Вы ещё не вступили ни в одно рабочее пространство.",
+        member: "Участник",
+        leave: "Покинуть рабочее пространство",
+        createFirstAdmin: "Создайте первое рабочее пространство, чтобы начать управление аналитикой.",
+        createFirstSales: "Найдите рабочее пространство по имени или введите пароль, чтобы получить доступ.",
+        enterWorkspacePassword: "Введите пароль рабочего пространства, чтобы получить доступ.",
+        createWorkspace: "Создать рабочее пространство",
+        createWorkspaceHint: "Администраторы задают имя рабочего пространства и пароль для входа.",
+        newWorkspace: "Новое рабочее пространство",
+        workspaceName: "Название рабочего пространства",
+        descriptionOptional: "Описание (необязательно)",
+        workspacePassword: "Пароль рабочего пространства",
+        create: "Создать",
+        cancel: "Отмена",
+        available: "Доступные рабочие пространства",
+        availableHint: "Найдите рабочее пространство в списке и введите его пароль, чтобы присоединиться.",
+        joined: "Вы уже внутри",
+        passwordRequired: "Нужен пароль",
+        openWorkspace: "Открыть рабочее пространство",
+        enterWorkspacePasswordShort: "Введите пароль рабочего пространства",
+        joinWorkspace: "Вступить в рабочее пространство",
+        enterPasswordButton: "Ввести пароль",
+        noWorkspaces: "Рабочие пространства ещё не созданы.",
+      }
+    : {
+        loadError: "Failed to load workspaces.",
+        createError: "Failed to create workspace.",
+        notFound: "Workspace with this name was not found.",
+        leaveError: "Failed to leave workspace.",
+        enterPassword: "Enter the workspace password.",
+        joinError: "Failed to join workspace.",
+        choose: "Choose a Workspace",
+        adminHint: "Create workspaces and open the one you want to manage.",
+        salesHint: "Join workspaces by password and switch between the ones you already have access to.",
+        findByName: "Find workspace by name",
+        startTyping: "Start typing a workspace name",
+        find: "Find",
+        yourWorkspaces: "Your Workspaces",
+        openMember: "Open any workspace you are already a member of.",
+        noneJoined: "You have not joined any workspaces yet.",
+        member: "Member",
+        leave: "Leave Workspace",
+        createFirstAdmin: "Create your first workspace to start managing analytics.",
+        createFirstSales: "Enter a workspace password to get access.",
+        enterWorkspacePassword: "Enter a workspace password to get access.",
+        createWorkspace: "Create Workspace",
+        createWorkspaceHint: "Admins set the workspace name and login password.",
+        newWorkspace: "New Workspace",
+        workspaceName: "Workspace name",
+        descriptionOptional: "Description (optional)",
+        workspacePassword: "Workspace password",
+        create: "Create",
+        cancel: "Cancel",
+        available: "Available Workspaces",
+        availableHint: "Find a workspace in the list and enter its password to join.",
+        joined: "Joined",
+        passwordRequired: "Password required",
+        openWorkspace: "Open Workspace",
+        enterWorkspacePasswordShort: "Enter workspace password",
+        joinWorkspace: "Join Workspace",
+        enterPasswordButton: "Enter Password",
+        noWorkspaces: "No workspaces have been created yet.",
+      };
 
   const isAdmin = user?.system_role === "admin";
 
@@ -50,7 +130,7 @@ export function WorkspaceSelector() {
       }
     } catch (loadError) {
       console.error("Failed to load workspaces:", loadError);
-      setError("Failed to load workspaces.");
+      setError(text.loadError);
     } finally {
       setLoading(false);
     }
@@ -80,7 +160,7 @@ export function WorkspaceSelector() {
     } catch (createError) {
       console.error("Failed to create workspace:", createError);
       const apiError = createError as { response?: { data?: { detail?: string } } };
-      setError(apiError.response?.data?.detail || "Failed to create workspace.");
+      setError(apiError.response?.data?.detail || text.createError);
     }
   };
 
@@ -109,7 +189,7 @@ export function WorkspaceSelector() {
     const matchedWorkspace = findWorkspaceByName();
     if (!matchedWorkspace) {
       setActiveJoinWorkspaceId(null);
-      setError("Workspace with this name was not found.");
+      setError(text.notFound);
       return;
     }
 
@@ -142,7 +222,7 @@ export function WorkspaceSelector() {
     } catch (leaveError) {
       console.error("Failed to leave workspace:", leaveError);
       const apiError = leaveError as { response?: { data?: { detail?: string } } };
-      setError(apiError.response?.data?.detail || "Failed to leave workspace.");
+      setError(apiError.response?.data?.detail || text.leaveError);
     }
   };
 
@@ -151,7 +231,7 @@ export function WorkspaceSelector() {
 
     const normalizedPassword = joinPassword.trim();
     if (!normalizedPassword) {
-      setError("Enter the workspace password.");
+      setError(text.enterPassword);
       return;
     }
 
@@ -169,7 +249,7 @@ export function WorkspaceSelector() {
     } catch (joinError) {
       console.error("Failed to join workspace:", joinError);
       const apiError = joinError as { response?: { data?: { detail?: string } } };
-      setError(apiError.response?.data?.detail || "Failed to join workspace.");
+      setError(apiError.response?.data?.detail || text.joinError);
     }
   };
 
@@ -190,14 +270,12 @@ export function WorkspaceSelector() {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:py-10">
       <div className="w-full max-w-4xl space-y-6">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Choose a Workspace</h2>
+          <h2 className="text-3xl font-bold text-gray-900">{text.choose}</h2>
           <p className="mt-2 text-gray-600">
-            {isAdmin
-              ? "Create workspaces and open the one you want to manage."
-              : "Join workspaces by password and switch between the ones you already have access to."}
+            {isAdmin ? text.adminHint : text.salesHint}
           </p>
         </div>
 
@@ -209,20 +287,20 @@ export function WorkspaceSelector() {
 
         {!isAdmin && (
           <form onSubmit={openWorkspaceByName} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-xl">
-            <label className="mb-2 block text-sm font-medium text-gray-700">Find workspace by name</label>
-            <div className="flex gap-3">
+            <label className="mb-2 block text-sm font-medium text-gray-700">{text.findByName}</label>
+            <div className="flex flex-col gap-3 sm:flex-row">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Start typing a workspace name"
+                placeholder={text.startTyping}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="submit"
                 className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
               >
-                Find
+                {text.find}
               </button>
             </div>
           </form>
@@ -230,13 +308,13 @@ export function WorkspaceSelector() {
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Your Workspaces</h3>
+                <h3 className="text-xl font-semibold text-gray-900">{text.yourWorkspaces}</h3>
                 <p className="mt-1 text-sm text-gray-500">
                   {joinedWorkspaces.length > 0
-                    ? "Open any workspace you are already a member of."
-                    : "You have not joined any workspaces yet."}
+                    ? text.openMember
+                    : text.noneJoined}
                 </p>
               </div>
             </div>
@@ -252,7 +330,7 @@ export function WorkspaceSelector() {
                         : "border-gray-200"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <button onClick={() => selectWorkspace(workspace)} className="flex-1 text-left">
                         <div className="font-medium text-gray-900">{workspace.name}</div>
                         {workspace.description && (
@@ -260,7 +338,7 @@ export function WorkspaceSelector() {
                         )}
                       </button>
                       <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                        Member
+                        {text.member}
                       </span>
                     </div>
                     {!isAdmin && (
@@ -268,7 +346,7 @@ export function WorkspaceSelector() {
                         onClick={() => leaveWorkspace(workspace)}
                         className="mt-4 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
                       >
-                        Leave Workspace
+                         {text.leave}
                       </button>
                     )}
                   </div>
@@ -277,8 +355,8 @@ export function WorkspaceSelector() {
             ) : (
               <div className="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center text-gray-500">
                 {isAdmin
-                  ? "Create your first workspace to start managing analytics."
-                  : "Enter a workspace password to get access."}
+                  ? text.createFirstAdmin
+                  : text.createFirstSales}
               </div>
             )}
           </div>
@@ -286,19 +364,17 @@ export function WorkspaceSelector() {
           <div className="space-y-6">
             {isAdmin ? (
               <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xl">
-                <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900">Create Workspace</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Admins set the workspace name and login password.
-                    </p>
+                    <h3 className="text-xl font-semibold text-gray-900">{text.createWorkspace}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{text.createWorkspaceHint}</p>
                   </div>
                   {!showCreate && (
                     <button
                       onClick={() => setShowCreate(true)}
                       className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
                     >
-                      New Workspace
+                       {text.newWorkspace}
                     </button>
                   )}
                 </div>
@@ -309,14 +385,14 @@ export function WorkspaceSelector() {
                       type="text"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      placeholder="Workspace name"
+                      placeholder={text.workspaceName}
                       className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
                       required
                     />
                     <textarea
                       value={newDescription}
                       onChange={(e) => setNewDescription(e.target.value)}
-                      placeholder="Description (optional)"
+                      placeholder={text.descriptionOptional}
                       rows={3}
                       className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
                     />
@@ -324,16 +400,16 @@ export function WorkspaceSelector() {
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Workspace password"
+                      placeholder={text.workspacePassword}
                       className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
                       required
                     />
-                    <div className="flex gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row">
                       <button
                         type="submit"
                         className="flex-1 rounded-lg bg-blue-600 py-2 text-white font-medium hover:bg-blue-700 transition"
                       >
-                        Create
+                         {text.create}
                       </button>
                       <button
                         type="button"
@@ -346,7 +422,7 @@ export function WorkspaceSelector() {
                         }}
                         className="flex-1 rounded-lg border border-gray-300 py-2 font-medium hover:bg-gray-50 transition"
                       >
-                        Cancel
+                         {text.cancel}
                       </button>
                     </div>
                   </form>
@@ -354,10 +430,8 @@ export function WorkspaceSelector() {
               </div>
             ) : (
               <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xl">
-                <h3 className="text-xl font-semibold text-gray-900">Available Workspaces</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Find a workspace in the list and enter its password to join.
-                </p>
+                 <h3 className="text-xl font-semibold text-gray-900">{text.available}</h3>
+                 <p className="mt-1 text-sm text-gray-500">{text.availableHint}</p>
 
                 <div className="mt-4 space-y-3">
                   {filteredDiscoverableWorkspaces.length > 0 ? (
@@ -366,7 +440,7 @@ export function WorkspaceSelector() {
 
                       return (
                         <div key={workspace.id} className="rounded-xl border border-gray-200 p-4">
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <div className="font-medium text-gray-900">{workspace.name}</div>
                               {workspace.description && (
@@ -374,7 +448,7 @@ export function WorkspaceSelector() {
                               )}
                             </div>
                             <span className={`rounded-full px-3 py-1 text-xs font-medium ${isMember ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                              {isMember ? "Joined" : "Password required"}
+                              {isMember ? text.joined : text.passwordRequired}
                             </span>
                           </div>
 
@@ -384,7 +458,7 @@ export function WorkspaceSelector() {
                                 onClick={() => selectWorkspace(workspace)}
                                 className="w-full rounded-lg bg-blue-600 py-2 text-white font-medium hover:bg-blue-700 transition"
                               >
-                                Open Workspace
+                                 {text.openWorkspace}
                               </button>
                             ) : activeJoinWorkspaceId === workspace.id ? (
                               <form
@@ -398,16 +472,16 @@ export function WorkspaceSelector() {
                                   type="password"
                                   value={joinPassword}
                                   onChange={(e) => setJoinPassword(e.target.value)}
-                                  placeholder="Enter workspace password"
+                                   placeholder={text.enterWorkspacePasswordShort}
                                   className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
                                   autoFocus
                                 />
-                                <div className="flex gap-3">
+                                <div className="flex flex-col gap-3 sm:flex-row">
                                   <button
                                     type="submit"
                                     className="flex-1 rounded-lg bg-blue-600 py-2 text-white font-medium hover:bg-blue-700 transition"
                                   >
-                                    Join Workspace
+                                     {text.joinWorkspace}
                                   </button>
                                   <button
                                     type="button"
@@ -418,7 +492,7 @@ export function WorkspaceSelector() {
                                     }}
                                     className="flex-1 rounded-lg border border-gray-300 py-2 font-medium hover:bg-gray-50 transition"
                                   >
-                                    Cancel
+                                     {text.cancel}
                                   </button>
                                 </div>
                               </form>
@@ -431,7 +505,7 @@ export function WorkspaceSelector() {
                                 }}
                                 className="w-full rounded-lg border border-blue-200 bg-blue-50 py-2 text-blue-700 font-medium hover:bg-blue-100 transition"
                               >
-                                Enter Password
+                                 {text.enterPasswordButton}
                               </button>
                             )}
                           </div>
@@ -440,8 +514,8 @@ export function WorkspaceSelector() {
                     })
                   ) : (
                     <div className="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center text-gray-500">
-                      No workspaces have been created yet.
-                    </div>
+                       {text.noWorkspaces}
+                     </div>
                   )}
                 </div>
               </div>

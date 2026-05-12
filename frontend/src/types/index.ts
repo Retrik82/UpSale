@@ -95,6 +95,38 @@ export interface CallReport {
   full_analysis: string | null;
 }
 
+export interface TrainerScenario {
+  id: string;
+  title: string;
+  difficulty: string;
+  trainer_name: string;
+  company_name: string;
+  summary: string;
+  scenario: string;
+  pressure_points: string[];
+  advice: string[];
+  max_turns: number;
+}
+
+export interface TrainerMessage {
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface TrainerSession {
+  id: string;
+  workspace_id: string;
+  scenario_id: string;
+  language: string;
+  status: "in_progress" | "completed";
+  end_reason: string | null;
+  started_at: string;
+  completed_at: string | null;
+  messages: TrainerMessage[];
+  report: CallReport | null;
+}
+
 export interface KeyMoment {
   timestamp: string;
   type: "positive" | "negative" | "neutral";

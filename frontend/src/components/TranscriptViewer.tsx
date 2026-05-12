@@ -1,16 +1,30 @@
 "use client";
 
 import type { Transcript } from "@/types";
+import { useStore } from "@/lib/store";
 
 interface TranscriptViewerProps {
   transcript: Transcript | null;
 }
 
 export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
+  const { appLanguage } = useStore();
+  const text = appLanguage === "ru"
+    ? {
+        empty: "Транскрипт пока недоступен",
+        title: "Транскрипт",
+        speakers: "спикеров",
+      }
+    : {
+        empty: "No transcript available",
+        title: "Transcript",
+        speakers: "speakers",
+      };
+
   if (!transcript) {
     return (
       <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <p className="text-gray-500 text-center py-8">No transcript available</p>
+        <p className="text-gray-500 text-center py-8">{text.empty}</p>
       </div>
     );
   }
@@ -36,11 +50,11 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Transcript</h3>
+          <h3 className="font-semibold text-gray-900">{text.title}</h3>
           <div className="flex items-center gap-4 text-sm text-gray-600">
             <span>{transcript.language}</span>
             {transcript.speakers && (
-              <span>{transcript.speakers.length} speakers</span>
+              <span>{transcript.speakers.length} {text.speakers}</span>
             )}
           </div>
         </div>

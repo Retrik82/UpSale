@@ -12,7 +12,44 @@ const CALL_TITLE_MAX_LENGTH = 255;
 
 export default function CallsPage() {
   const router = useRouter();
-  const { token, currentWorkspace, user } = useStore();
+  const { token, currentWorkspace, user, appLanguage } = useStore();
+  const text = appLanguage === "ru"
+    ? {
+        title: "Звонки",
+        adminHint: "Администраторы не создают звонки. Используйте панель для просмотра аналитики и управления людьми.",
+        back: "Назад к панели",
+        subtitle: "Отслеживайте звонки в этом рабочем пространстве и отмечайте успешные продажи",
+        newCall: "Новый звонок",
+        emptyTitle: "Пока нет звонков",
+        emptyHint: "Создайте первый звонок для этого рабочего пространства",
+        firstCall: "Записать первый звонок",
+        modalTitle: "Новый звонок",
+        clientName: "Имя клиента (необязательно)",
+        upTo: `До ${CALL_TITLE_MAX_LENGTH} символов`,
+        notes: "Заметки (необязательно)",
+        notesPlaceholder: "Добавьте контекст о разговоре",
+        cancel: "Отмена",
+        create: "Создать звонок",
+        createError: "Не удалось создать звонок.",
+      }
+    : {
+        title: "Calls",
+        adminHint: "Admins do not create calls. Use the dashboard to review workspace analytics and manage people.",
+        back: "Back to Dashboard",
+        subtitle: "Track your calls in this workspace and mark successful sales",
+        newCall: "New Call",
+        emptyTitle: "No calls yet",
+        emptyHint: "Create your first sales call for this workspace",
+        firstCall: "Record Your First Call",
+        modalTitle: "New Call",
+        clientName: "Client Name (optional)",
+        upTo: `Up to ${CALL_TITLE_MAX_LENGTH} characters`,
+        notes: "Notes (optional)",
+        notesPlaceholder: "Add context about the conversation",
+        cancel: "Cancel",
+        create: "Create Call",
+        createError: "Failed to create call.",
+      };
   const [calls, setCalls] = useState<RealCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -66,7 +103,7 @@ export default function CallsPage() {
     } catch (error) {
       console.error("Failed to create call:", error);
       const apiError = error as { response?: { data?: { detail?: string } } };
-      setCreateError(apiError.response?.data?.detail || "Failed to create call.");
+      setCreateError(apiError.response?.data?.detail || text.createError);
     }
   };
 
@@ -76,17 +113,15 @@ export default function CallsPage() {
 
   if (user?.system_role === "admin") {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <div className="max-w-2xl rounded-2xl border border-gray-200 bg-white p-8">
-          <h1 className="text-3xl font-bold text-gray-900">Calls</h1>
-          <p className="mt-3 text-gray-600">
-            Admins do not create calls. Use the dashboard to review workspace analytics and manage people.
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">{text.title}</h1>
+          <p className="mt-3 text-gray-600">{text.adminHint}</p>
           <button
             onClick={() => router.push("/dashboard")}
             className="mt-6 rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
           >
-            Back to Dashboard
+            {text.back}
           </button>
         </div>
       </div>
@@ -94,11 +129,11 @@ export default function CallsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 sm:p-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Calls</h1>
-          <p className="text-gray-600 mt-1">Track your calls in this workspace and mark successful sales</p>
+          <h1 className="text-3xl font-bold text-gray-900">{text.title}</h1>
+          <p className="text-gray-600 mt-1">{text.subtitle}</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -107,7 +142,7 @@ export default function CallsPage() {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          New Call
+          {text.newCall}
         </button>
       </div>
 
@@ -130,25 +165,25 @@ export default function CallsPage() {
           <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
           </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No calls yet</h3>
-           <p className="text-gray-500 mb-6">Create your first sales call for this workspace</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{text.emptyTitle}</h3>
+           <p className="text-gray-500 mb-6">{text.emptyHint}</p>
           <button
             onClick={() => setShowCreateModal(true)}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
-            Record Your First Call
+            {text.firstCall}
           </button>
         </div>
       )}
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-scale-in">
-             <h2 className="text-xl font-bold text-gray-900 mb-4">New Call</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md animate-scale-in rounded-2xl bg-white p-5 sm:p-6">
+             <h2 className="text-xl font-bold text-gray-900 mb-4">{text.modalTitle}</h2>
              <form onSubmit={createCall} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Client Name (optional)
+                  {text.clientName}
                 </label>
                 <input
                   type="text"
@@ -159,20 +194,20 @@ export default function CallsPage() {
                   placeholder="e.g., Acme Corp"
                 />
                 <div className="mt-1 flex justify-between text-xs text-gray-500">
-                  <span>Up to {CALL_TITLE_MAX_LENGTH} characters</span>
+                   <span>{text.upTo}</span>
                   <span>{newCallClientName.length}/{CALL_TITLE_MAX_LENGTH}</span>
                 </div>
                </div>
                <div>
                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                   Notes (optional)
+                    {text.notes}
                  </label>
                  <textarea
                    value={newCallNotes}
                    onChange={(e) => setNewCallNotes(e.target.value)}
                    rows={4}
                    className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                   placeholder="Add context about the conversation"
+                    placeholder={text.notesPlaceholder}
                  />
                </div>
               {createError && (
@@ -189,13 +224,13 @@ export default function CallsPage() {
                   }}
                   className="flex-1 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
                 >
-                  Cancel
+                  {text.cancel}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
                 >
-                  Create Call
+                  {text.create}
                 </button>
               </div>
             </form>

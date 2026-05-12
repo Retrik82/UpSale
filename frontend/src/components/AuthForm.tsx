@@ -16,7 +16,44 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
-  const { setAuth } = useStore();
+  const { setAuth, appLanguage } = useStore();
+  const text = appLanguage === "ru"
+    ? {
+        welcomeBack: "С возвращением",
+        createAccount: "Создайте аккаунт",
+        fullName: "Полное имя",
+        role: "Роль",
+        salesManager: "Менеджер продаж",
+        salesManagerDesc: "Может вступать в несколько рабочих пространств и переключаться между ними.",
+        admin: "Администратор",
+        adminDesc: "Создаёт рабочие пространства и следит за аналитикой.",
+        email: "Email",
+        password: "Пароль",
+        processing: "Обработка...",
+        signIn: "Войти",
+        createAccountBtn: "Создать аккаунт",
+        noAccount: "Нет аккаунта? Зарегистрируйтесь",
+        haveAccount: "Уже есть аккаунт? Войдите",
+        error: "Произошла ошибка",
+      }
+    : {
+        welcomeBack: "Welcome back",
+        createAccount: "Create your account",
+        fullName: "Full Name",
+        role: "Role",
+        salesManager: "Sales Manager",
+        salesManagerDesc: "Join multiple workspaces and switch between them.",
+        admin: "Admin",
+        adminDesc: "Create workspaces and monitor workspace analytics.",
+        email: "Email",
+        password: "Password",
+        processing: "Processing...",
+        signIn: "Sign In",
+        createAccountBtn: "Create Account",
+        noAccount: "Don't have an account? Sign up",
+        haveAccount: "Already have an account? Sign in",
+        error: "An error occurred",
+      };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +89,7 @@ export function AuthForm() {
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
-      setError(error.response?.data?.detail || "An error occurred");
+      setError(error.response?.data?.detail || text.error);
     } finally {
       setLoading(false);
     }
@@ -63,20 +100,20 @@ export function AuthForm() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
-            AI Sales Coach
+            UpSale
           </h1>
           <p className="mt-2 text-gray-600">
-            {isLogin ? "Welcome back" : "Create your account"}
+            {isLogin ? text.welcomeBack : text.createAccount}
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-8 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
+                    {text.fullName}
                   </label>
                   <input
                     type="text"
@@ -89,7 +126,7 @@ export function AuthForm() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Role
+                    {text.role}
                   </label>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <button
@@ -97,28 +134,24 @@ export function AuthForm() {
                       onClick={() => setSystemRole("sales_manager")}
                       className={`rounded-xl border p-4 text-left transition ${
                         systemRole === "sales_manager"
-                          ? "border-blue-500 bg-blue-50"
+                          ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
                           : "border-gray-200 hover:border-blue-300"
                       }`}
                     >
-                      <div className="font-medium text-gray-900">Sales Manager</div>
-                      <div className="mt-1 text-sm text-gray-500">
-                        Join multiple workspaces and switch between them.
-                      </div>
+                      <div className="font-medium text-gray-900">{text.salesManager}</div>
+                      <div className="mt-1 text-sm text-gray-500">{text.salesManagerDesc}</div>
                     </button>
                     <button
                       type="button"
                       onClick={() => setSystemRole("admin")}
                       className={`rounded-xl border p-4 text-left transition ${
                         systemRole === "admin"
-                          ? "border-blue-500 bg-blue-50"
+                          ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
                           : "border-gray-200 hover:border-blue-300"
                       }`}
                     >
-                      <div className="font-medium text-gray-900">Admin</div>
-                      <div className="mt-1 text-sm text-gray-500">
-                        Create workspaces and monitor workspace analytics.
-                      </div>
+                      <div className="font-medium text-gray-900">{text.admin}</div>
+                      <div className="mt-1 text-sm text-gray-500">{text.adminDesc}</div>
                     </button>
                   </div>
                 </div>
@@ -127,7 +160,7 @@ export function AuthForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+                {text.email}
               </label>
               <input
                 type="email"
@@ -141,7 +174,7 @@ export function AuthForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
+                {text.password}
               </label>
               <input
                 type="password"
@@ -164,7 +197,7 @@ export function AuthForm() {
               disabled={loading}
               className="w-full py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-lg font-medium hover:opacity-90 transition disabled:opacity-50"
             >
-              {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
+              {loading ? text.processing : isLogin ? text.signIn : text.createAccountBtn}
             </button>
           </form>
 
@@ -174,8 +207,8 @@ export function AuthForm() {
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
               {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
+                ? text.noAccount
+                : text.haveAccount}
             </button>
           </div>
         </div>

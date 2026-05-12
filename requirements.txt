@@ -14,3 +14,6 @@ numpy>=2.2.0
 sounddevice>=0.5.2
 openai-whisper>=20240930
 soundfile>=0.12.1
+torch>=2.8,<2.12
+torchaudio>=2.8,<2.12
+pyannote.audio>=4,<5

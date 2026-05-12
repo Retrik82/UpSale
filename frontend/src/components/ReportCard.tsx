@@ -2,33 +2,69 @@
 
 import { getScoreColor, getScoreBgColor, formatScore } from "@/lib/utils";
 import type { CallReport } from "@/types";
+import { useStore } from "@/lib/store";
 
 interface ReportCardProps {
   report: CallReport | null;
 }
 
 export function ReportCard({ report }: ReportCardProps) {
+  const { appLanguage } = useStore();
+  const text = appLanguage === "ru"
+    ? {
+        empty: "Отчёт пока недоступен",
+        title: "Отчёт по разговору",
+        scores: "Оценки по навыкам",
+        engagement: "Вовлечение",
+        objections: "Работа с возражениями",
+        closing: "Закрытие на шаг",
+        product: "Знание продукта",
+        communication: "Ясность коммуникации",
+        talkRatio: "Баланс речи",
+        seller: "Менеджер",
+        client: "Клиент",
+        strengths: "Сильные стороны",
+        improvements: "Что улучшить",
+        summary: "Краткий вывод",
+      }
+    : {
+        empty: "No report available",
+        title: "Analysis Report",
+        scores: "Performance Scores",
+        engagement: "Engagement",
+        objections: "Objection Handling",
+        closing: "Closing",
+        product: "Product Knowledge",
+        communication: "Communication",
+        talkRatio: "Talk Ratio",
+        seller: "Seller",
+        client: "Client",
+        strengths: "Strengths",
+        improvements: "Areas for Improvement",
+        summary: "Summary",
+      };
+
   if (!report) {
     return (
       <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <p className="text-gray-500 text-center py-8">No report available</p>
+        <p className="text-gray-500 text-center py-8">{text.empty}</p>
       </div>
     );
   }
 
   const scores = [
-    { label: "Engagement", value: report.engagement_score },
-    { label: "Objection Handling", value: report.objection_handling_score },
-    { label: "Closing", value: report.closing_score },
-    { label: "Product Knowledge", value: report.product_knowledge_score },
-    { label: "Communication", value: report.communication_clarity_score },
+    { label: text.engagement, value: report.engagement_score },
+    { label: text.objections, value: report.objection_handling_score },
+    { label: text.closing, value: report.closing_score },
+    { label: text.product, value: report.product_knowledge_score },
+    { label: text.communication, value: report.communication_clarity_score },
   ];
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Analysis Report</h3>
+          <h3 className="font-semibold text-gray-900">{text.title}</h3>
           <div
             className={`px-4 py-2 rounded-xl font-bold text-2xl ${getScoreBgColor(
               report.overall_score
@@ -41,7 +77,7 @@ export function ReportCard({ report }: ReportCardProps) {
 
       <div className="p-6 space-y-6">
         <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Performance Scores</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-3">{text.scores}</h4>
           <div className="space-y-3">
             {scores.map((score) => (
               <div key={score.label}>
@@ -67,14 +103,14 @@ export function ReportCard({ report }: ReportCardProps) {
         </div>
 
         <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Talk Ratio</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-3">{text.talkRatio}</h4>
           <div className="flex gap-4 text-sm">
             <div>
-              <span className="text-gray-500">Seller: </span>
+              <span className="text-gray-500">{text.seller}: </span>
               <span className="font-medium">{(report.talk_ratio_seller * 100).toFixed(0)}%</span>
             </div>
             <div>
-              <span className="text-gray-500">Client: </span>
+              <span className="text-gray-500">{text.client}: </span>
               <span className="font-medium">{(report.talk_ratio_client * 100).toFixed(0)}%</span>
             </div>
           </div>
@@ -82,7 +118,7 @@ export function ReportCard({ report }: ReportCardProps) {
 
         {report.strengths && report.strengths.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Strengths</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">{text.strengths}</h4>
             <ul className="space-y-1">
               {report.strengths.map((strength, i) => (
                 <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
@@ -96,7 +132,7 @@ export function ReportCard({ report }: ReportCardProps) {
 
         {report.areas_for_improvement && report.areas_for_improvement.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Areas for Improvement</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">{text.improvements}</h4>
             <ul className="space-y-1">
               {report.areas_for_improvement.map((area, i) => (
                 <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
@@ -110,7 +146,7 @@ export function ReportCard({ report }: ReportCardProps) {
 
         {report.summary && (
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Summary</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">{text.summary}</h4>
             <p className="text-sm text-gray-600">{report.summary}</p>
           </div>
         )}

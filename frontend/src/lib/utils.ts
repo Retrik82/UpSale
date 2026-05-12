@@ -14,8 +14,9 @@ export function formatDate(date: string): string {
 }
 
 export function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  const safeSeconds = Math.max(0, Math.round(seconds));
+  const mins = Math.floor(safeSeconds / 60);
+  const secs = safeSeconds % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 

@@ -2,6 +2,7 @@
 
 import { formatDate, formatDuration } from "@/lib/utils";
 import type { RealCall } from "@/types";
+import { useStore } from "@/lib/store";
 
 interface CallCardProps {
   call: RealCall;
@@ -9,7 +10,33 @@ interface CallCardProps {
 }
 
 export function CallCard({ call, onClick }: CallCardProps) {
-  const callTitle = call.client_name || "Unnamed Call";
+  const { appLanguage } = useStore();
+  const text = appLanguage === "ru"
+    ? {
+        unnamed: "Звонок без названия",
+        overall: "Общая оценка",
+        statuses: {
+          recording: "Запись",
+          completed: "Завершён",
+          failed: "Ошибка",
+          transcribing: "Расшифровка",
+          analyzing: "Анализ",
+          pending: "В ожидании",
+        } as Record<string, string>,
+      }
+    : {
+        unnamed: "Unnamed Call",
+        overall: "Overall Score",
+        statuses: {
+          recording: "recording",
+          completed: "completed",
+          failed: "failed",
+          transcribing: "transcribing",
+          analyzing: "analyzing",
+          pending: "pending",
+        } as Record<string, string>,
+      };
+  const callTitle = call.client_name || text.unnamed;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -44,7 +71,7 @@ export function CallCard({ call, onClick }: CallCardProps) {
             call.status
           )}`}
         >
-          {call.status}
+          {text.statuses[call.status] || call.status}
         </span>
       </div>
 
@@ -67,7 +94,7 @@ export function CallCard({ call, onClick }: CallCardProps) {
       {call.report && (
         <div className="mt-4 pt-4 border-t border-gray-100">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Overall Score</span>
+            <span className="text-sm text-gray-600">{text.overall}</span>
             <span className="text-lg font-bold text-blue-600">
               {call.report.overall_score}/100
             </span>

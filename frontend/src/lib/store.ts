@@ -17,7 +17,12 @@ interface WorkspaceState {
   setCurrentWorkspace: (workspace: Workspace | null) => void;
 }
 
-interface AppState extends AuthState, WorkspaceState {}
+interface PreferencesState {
+  appLanguage: "ru" | "en";
+  setAppLanguage: (language: "ru" | "en") => void;
+}
+
+interface AppState extends AuthState, WorkspaceState, PreferencesState {}
 
 export const useStore = create<AppState>()(
   persist(
@@ -42,10 +47,13 @@ export const useStore = create<AppState>()(
 
       workspaces: [],
       currentWorkspace: null,
+      appLanguage: "ru",
       
       setWorkspaces: (workspaces) => set({ workspaces }),
       
       setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
+
+      setAppLanguage: (appLanguage) => set({ appLanguage }),
     }),
     {
       name: "salescoach-storage",
@@ -53,6 +61,7 @@ export const useStore = create<AppState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
+        appLanguage: state.appLanguage,
       }),
     }
   )

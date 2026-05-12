@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Sales Training API",
+    title="UpSale API",
     description="API for training sales managers",
     version="1.0.0",
     lifespan=lifespan,
